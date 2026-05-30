@@ -160,6 +160,46 @@ void main() {
       expect(handler.isDragging, isFalse);
       expect(handler.draggingPhotoId, isNull);
     });
+
+    test('isBeyondBoundary returns false when within bounds', () {
+      final photo = PhotoCard(id: 1, imagePath: 'a.jpg', x: 1000, y: 1000);
+      handler.onDragStart(1, const Offset(100, 100), photo);
+      handler.onDragUpdate(const Offset(200, 200), 1.0);
+      expect(handler.isBeyondBoundary, isFalse);
+    });
+
+    test('isBeyondBoundary returns true when dragged far beyond canvas', () {
+      final photo = PhotoCard(id: 1, imagePath: 'a.jpg', x: 50, y: 50);
+      handler.onDragStart(1, const Offset(100, 100), photo);
+      // 拖到负坐标很远的位置
+      handler.onDragUpdate(const Offset(-500, -500), 1.0);
+      expect(handler.isBeyondBoundary, isTrue);
+    });
+
+    test('getSpringBackTarget clamps to valid boundary', () {
+      final photo = PhotoCard(id: 1, imagePath: 'a.jpg', x: 50, y: 50);
+      handler.onDragStart(1, const Offset(100, 100), photo);
+      handler.onDragUpdate(const Offset(-500, -500), 1.0);
+      final target = handler.getSpringBackTarget();
+      // 应该被钳制到边界内
+      expect(target.dx, greaterThanOrEqualTo(0));
+      expect(target.dy, greaterThanOrEqualTo(0));
+    });
+
+    test('damping slows down movement beyond boundary', () {
+      final photo = PhotoCard(id: 1, imagePath: 'a.jpg', x: 100, y: 100);
+      handler.onDragStart(1, const Offset(100, 100), photo);
+      // 在边界内移动
+      final pos1 = handler.onDragUpdate(const Offset(200, 200), 1.0);
+      // 移动到边界外
+      final pos2 = handler.onDragUpdate(const Offset(6000, 6000), 1.0);
+      // 边界外的移动应该被阻尼减速
+      expect(pos2, isNotNull);
+      // 边界外的实际位移应该小于线性位移
+      final linearDelta = 6000 - 100;
+      final actualDelta = pos2!.dx - 100;
+      expect(actualDelta, lessThan(linearDelta.toDouble()));
+    });
   });
 
   group('SelectionManager', () {
@@ -208,6 +248,27 @@ void main() {
       manager.selectPhoto(42, []);
       expect(manager.selectedPhotoId, 42);
       expect(manager.hasSelection, isTrue);
+    });
+
+    test('selectPhoto highlights connected cards', () {
+      final connections = [
+        Connection(fromPhotoId: 10, toCardId: 1),
+        Connection(fromPhotoId: 10, toCardId: 2),
+      ];
+      manager.selectPhoto(10, connections);
+      expect(manager.selectedPhotoId, 10);
+      expect(manager.highlightedCardIds, containsAll([1, 2]));
+      expect(manager.highlightedPhotoIds, contains(10));
+    });
+
+    test('selectPhoto highlights bidirectional connections', () {
+      final connections = [
+        Connection(fromCardId: 5, toPhotoId: 10),
+        Connection(fromPhotoId: 10, toPhotoId: 20),
+      ];
+      manager.selectPhoto(10, connections);
+      expect(manager.highlightedCardIds, contains(5));
+      expect(manager.highlightedPhotoIds, containsAll([10, 20]));
     });
 
     test('clearSelection resets everything', () {
