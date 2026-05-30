@@ -44,11 +44,11 @@ class CardsTable extends Table {
   /// 卡片旋转角度（弧度），默认 0
   RealColumn get rotation => real().withDefault(const Constant(0))();
 
-  /// 卡片宽度，默认 170
-  RealColumn get width => real().withDefault(const Constant(170.0))();
+  /// 卡片宽度，默认 160
+  RealColumn get width => real().withDefault(const Constant(160.0))();
 
-  /// 卡片高度，默认 100
-  RealColumn get height => real().withDefault(const Constant(100.0))();
+  /// 卡片高度，默认 90
+  RealColumn get height => real().withDefault(const Constant(90.0))();
 
   /// 创建时间
   DateTimeColumn get createdAt => dateTime()();

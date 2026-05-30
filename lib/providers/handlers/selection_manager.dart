@@ -57,8 +57,36 @@ class SelectionManager {
   }
 
   /// 选中一张照片
-  void selectPhoto(int photoId) {
+  ///
+  /// 将该照片及其所有直接关联卡片/照片加入高亮集合。
+  /// 与 [selectCard] 逻辑对称，确保选中照片时也能看到关联网络。
+  void selectPhoto(int photoId, List<Connection> connections) {
+    final connectedCardIds = <int>{};
+    final connectedPhotoIds = <int>{};
+
+    for (final conn in connections) {
+      if (conn.fromPhotoId == photoId && conn.toCardId != null) {
+        connectedCardIds.add(conn.toCardId!);
+      }
+      if (conn.toPhotoId == photoId && conn.fromCardId != null) {
+        connectedCardIds.add(conn.fromCardId!);
+      }
+      if (conn.fromPhotoId == photoId && conn.toPhotoId != null) {
+        connectedPhotoIds.add(conn.toPhotoId!);
+      }
+      if (conn.toPhotoId == photoId && conn.fromPhotoId != null) {
+        connectedPhotoIds.add(conn.fromPhotoId!);
+      }
+    }
+
     selectedPhotoId = photoId;
+    highlightedCardIds
+      ..clear()
+      ..addAll(connectedCardIds);
+    highlightedPhotoIds
+      ..clear()
+      ..add(photoId)
+      ..addAll(connectedPhotoIds);
   }
 
   /// 清除所有选中状态

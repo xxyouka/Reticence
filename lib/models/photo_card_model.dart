@@ -51,9 +51,10 @@ class PhotoCard extends Equatable {
   /// 照片在墙面上的 Y 坐标位置，默认为 0
   final double y;
 
-  /// 照片的旋转角度（度）
+  /// 照片的旋转角度（弧度）
   ///
   /// 用于模拟真实线索墙上照片随意钉放的效果，默认为 0（无旋转）。
+  /// 与 [ClueCard.rotation] 保持一致，统一使用弧度单位。
   final double rotation;
 
   /// 照片宽度

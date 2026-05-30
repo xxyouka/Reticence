@@ -467,7 +467,7 @@ class _PhotoCardWidgetState extends State<PhotoCardWidget>
           CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic),
         ),
         child: Transform.rotate(
-      angle: widget.photo.rotation * pi / 180,
+      angle: widget.photo.rotation,
       child: AnimatedBuilder(
         animation: _pressedScaleAnimation,
         builder: (context, child) {

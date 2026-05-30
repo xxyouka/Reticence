@@ -45,15 +45,13 @@ import '../providers/card_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/photo_provider.dart';
 import '../providers/handlers/canvas_navigation_handler.dart';
+import '../providers/handlers/clue_wall_controller.dart';
 import '../providers/handlers/connection_handler.dart';
 import '../providers/handlers/drag_handler.dart';
-import '../providers/handlers/photo_drag_handler.dart';
-import '../providers/handlers/selection_manager.dart';
 import '../providers/connection_render_provider.dart';
 import '../providers/undo_redo_provider.dart';
 import '../providers/commands/card_commands.dart';
 import '../providers/commands/connection_commands.dart';
-import '../controllers/search_controller.dart' as sc;
 import '../theme/app_colors.dart';
 import '../theme/wall_constants.dart';
 import '../utils/app_haptics.dart';
@@ -95,20 +93,14 @@ class ClueWallScreen extends ConsumerStatefulWidget {
 /// 职责涵盖以下几大模块：
 /// - **画布变换**：通过 [TransformationController] 管理平移/缩放矩阵，
 ///   支持双指缩放、双击自适应、边界约束等
-/// - **卡片拖拽**：委托给 [DragHandler]，处理拖拽开始/更新/结束，
-///   越界回弹、位置持久化等
-/// - **连线操作**：委托给 [ConnectionHandler]，管理从图钉发起的
-///   拖拽连线流程（开始→跟踪→完成/取消）
-/// - **画布导航**：委托给 [CanvasNavigationHandler]，处理缩放动画、
-///   适应屏幕、定位到指定卡片等
+/// - **交互编排**：委托给 [ClueWallController]，统一管理卡片、照片、
+///   连线的交互流程
 /// - **搜索与选择**：搜索过滤卡片、选中卡片高亮其关联卡片
-/// - **照片操作**：独立照片的创建、拖拽
 ///
 /// 状态变量之间的关系：
-/// - [_selection]：选中状态管理器，管理卡片/照片的选中和高亮状态
+/// - [_controller]：交互控制器，管理所有业务逻辑
 /// - [_cardPointerDown] 与 [_canvasPinching]：这两个标志用于区分
 ///   手指是在卡片上操作还是在画布上操作，避免手势冲突
-/// - [_photoDragHandler]：照片拖拽处理器，封装拖拽状态和位置计算逻辑
 class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     with TickerProviderStateMixin {
   /// 画布变换控制器，管理平移和缩放的 4x4 矩阵
@@ -128,17 +120,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 连线动画控制器，控制连线出现时的淡入效果
   late AnimationController _connectingAnimController;
 
-  /// 卡片拖拽处理器，封装拖拽状态和位置计算逻辑
-  final _dragHandler = DragHandler();
-
-  /// 连线操作处理器，封装连线状态和目标检测逻辑
-  final _connectionHandler = ConnectionHandler();
-
-  /// 画布导航处理器，封装缩放动画和边界约束逻辑
-  final _navigationHandler = CanvasNavigationHandler();
-
-  /// 照片拖拽处理器，封装照片拖拽状态和位置计算逻辑
-  final _photoDragHandler = PhotoDragHandler();
+  /// 交互控制器，管理卡片/照片/连线的交互逻辑
+  late final ClueWallController _controller;
 
   /// 共享浮动动画：所有卡片共用一个 Ticker 驱动浮动效果
   final ValueNotifier<double> _floatTimeNotifier = ValueNotifier(0);
@@ -146,25 +129,11 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
   bool _didCenterInitialCanvas = false;
 
-  /// 搜索控制器，封装搜索状态和匹配逻辑
-  final _searchCtrl = sc.AppSearchController();
-
   /// 工具按钮组的 GlobalKey，用于画布点击时收起展开菜单
   final _toolButtonsKey = GlobalKey<ToolButtonsState>();
 
   /// 画布截图用的 GlobalKey，用于导出功能
   final _canvasBoundaryKey = GlobalKey();
-
-  /// 选中状态管理器，管理卡片/照片的选中和高亮状态
-  final _selection = SelectionManager();
-
-  /// 按 ID 查找卡片（从 provider 缓存中读取）
-  ClueCard? _findCard(int id) =>
-      ref.read(cardListProvider).value?.firstWhereOrNull((c) => c.id == id);
-
-  /// 按 ID 查找照片（从 provider 缓存中读取）
-  PhotoCard? _findPhoto(int id) =>
-      ref.read(photoListProvider).value?.firstWhereOrNull((p) => p.id == id);
 
   /// 手指是否正在卡片上按下（用于区分手势是作用于卡片还是画布）
   final ValueNotifier<bool> _cardPointerDown = ValueNotifier(false);
@@ -180,6 +149,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   @override
   void initState() {
     super.initState();
+    _controller = ClueWallController(ref: ref);
     _transformController.addListener(_onTransformChanged);
     _zoomController = AnimationController(
       vsync: this,
@@ -191,7 +161,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     );
     _floatTicker = createTicker((elapsed) {
       _floatTimeNotifier.value = elapsed.inMicroseconds / 1000000.0;
-    })..start();
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerCanvasOnInitialEntry();
@@ -212,7 +182,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     _connectingAnimController.dispose();
     _floatTicker.dispose();
     _floatTimeNotifier.dispose();
-    _searchCtrl.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -222,9 +192,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 同步更新 canvasScale（通过 notifier 传递给 ThreadLayer）和缓存逆矩阵。
   /// 不调用 setState()，避免每帧重建整个屏幕。
   void _onTransformChanged() {
-    _navigationHandler.onTransformationUpdate(_transformController.value);
+    _controller.navigationHandler.onTransformationUpdate(_transformController.value);
     _cachedInverse = Matrix4.inverted(_transformController.value);
-    _canvasScaleNotifier.value = _navigationHandler.canvasScale;
+    _canvasScaleNotifier.value = _controller.navigationHandler.canvasScale;
     _canvasMotionNotifier.value++;
   }
 
@@ -257,7 +227,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 在当前视口范围内随机生成一个不与现有卡片重叠的位置
   Offset _randomPositionInViewport() {
     final screenSize = MediaQuery.of(context).size;
-    final scale = _navigationHandler.canvasScale;
+    final scale = _controller.navigationHandler.canvasScale;
     // 视口在画布坐标系中的范围
     final viewportLeft = -_transformController.value.getTranslation().x / scale;
     final viewportTop = -_transformController.value.getTranslation().y / scale;
@@ -321,7 +291,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
   /// 约束画布边界，防止用户将画布拖出可视范围
   void _clampCanvasBounds() {
-    _navigationHandler.clampCanvasBounds(
+    _controller.navigationHandler.clampCanvasBounds(
       _transformController,
       _zoomController,
       MediaQuery.of(context).size,
@@ -347,7 +317,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     });
 
     if (bounds.isEmpty) return;
-    _navigationHandler.zoomToFit(
+    _controller.navigationHandler.zoomToFit(
       _transformController,
       _zoomController,
       bounds,
@@ -357,7 +327,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
   /// 缩放画布以聚焦到指定卡片
   void _zoomToCard(ClueCard card) {
-    _navigationHandler.zoomToCard(
+    _controller.navigationHandler.zoomToCard(
       _transformController,
       _zoomController,
       card.x,
@@ -374,12 +344,12 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 1. 触发触觉反馈
   /// 2. 委托给 [DragHandler] 记录起始状态
   void _onCardDragStart(int cardId, Offset globalPosition) {
-    if (_connectionHandler.isConnecting) return;
-    final card = _findCard(cardId);
+    if (_controller.connectionHandler.isConnecting) return;
+    final card = _controller.findCard(cardId);
     if (card == null) return;
     AppHaptics.selection();
     setState(() {
-      _dragHandler.onDragStart(cardId, globalPosition, card);
+      _controller.dragHandler.onDragStart(cardId, globalPosition, card);
     });
   }
 
@@ -389,14 +359,14 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 更新内存中的卡片位置（不持久化）。
   void _onCardDragUpdate(Offset globalPosition) {
     if (_canvasPinching.value) return;
-    if (!_dragHandler.isDragging) return;
+    if (!_controller.dragHandler.isDragging) return;
     // 通知红线层：卡片拖拽也触发绳子摆动
     _canvasMotionNotifier.value++;
-    final pos = _dragHandler.onDragUpdate(
-        globalPosition, _navigationHandler.canvasScale);
+    final pos = _controller.dragHandler.onDragUpdate(
+        globalPosition, _controller.navigationHandler.canvasScale);
     if (pos == null) return;
     ref.read(cardListProvider.notifier).updateCardPositionInMemory(
-          _dragHandler.draggingCardId!,
+          _controller.dragHandler.draggingCardId!,
           pos.dx,
           pos.dy,
         );
@@ -410,13 +380,13 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// - **正常结束**：卡片在画布内，直接持久化当前位置
   void _onCardDragEnd() {
     // 在结束拖拽前记录旧位置（onDragEnd 会清除会话）
-    final oldPos = _dragHandler.cardStartPos;
-    final cardId = _dragHandler.onDragEnd();
+    final oldPos = _controller.dragHandler.cardStartPos;
+    final cardId = _controller.dragHandler.onDragEnd();
     if (cardId != null) {
       AppHaptics.light();
 
-      if (_dragHandler.isBeyondBoundary) {
-        final springBackTarget = _dragHandler.getSpringBackTarget();
+      if (_controller.dragHandler.isBeyondBoundary) {
+        final springBackTarget = _controller.dragHandler.getSpringBackTarget();
         ref.read(cardListProvider.notifier).updateCardPosition(
               cardId,
               springBackTarget.dx,
@@ -463,24 +433,24 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   }
 
   void _cancelActiveDragsForCanvasGesture() {
-    final draggingCardId = _dragHandler.draggingCardId;
-    final draggingPhotoId = _photoDragHandler.draggingPhotoId;
+    final draggingCardId = _controller.dragHandler.draggingCardId;
+    final draggingPhotoId = _controller.photoDragHandler.draggingPhotoId;
 
     if (draggingCardId != null) {
       unawaited(ref
           .read(cardListProvider.notifier)
           .persistCardPosition(draggingCardId));
-      _dragHandler.reset();
+      _controller.dragHandler.reset();
     }
 
     if (draggingPhotoId != null) {
       unawaited(ref
           .read(photoListProvider.notifier)
           .persistPhotoPosition(draggingPhotoId));
-      _photoDragHandler.reset();
+      _controller.photoDragHandler.reset();
     }
 
-    if (_cardPointerDown.value || _photoDragHandler.isDragging) {
+    if (_cardPointerDown.value || _controller.photoDragHandler.isDragging) {
       setState(() {
         _cardPointerDown.value = false;
       });
@@ -492,21 +462,21 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 用户在卡片详情中点击"连线"按钮时触发，
   /// 进入连线模式等待用户点击目标卡片。
   void _startConnecting(int fromCardId) {
-    final card = _findCard(fromCardId);
+    final card = _controller.findCard(fromCardId);
     if (card == null) return;
     HapticFeedback.mediumImpact();
     setState(() {
-      _connectionHandler.startConnecting(fromCardId, card);
+      _controller.connectionHandler.startConnecting(fromCardId, card);
     });
   }
 
   /// 从卡片图钉长按发起连线
   void _startConnectingFromPin(int fromCardId, Offset globalPos) {
-    final card = _findCard(fromCardId);
+    final card = _controller.findCard(fromCardId);
     if (card == null) return;
     HapticFeedback.mediumImpact();
     setState(() {
-      _connectionHandler.startConnectingFromPin(
+      _controller.connectionHandler.startConnectingFromPin(
           fromCardId, globalPos, card, _transformController.value);
     });
     _connectingAnimController.forward(from: 0);
@@ -514,11 +484,11 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
   /// 从照片图钉长按发起连线
   void _startConnectingFromPhotoPin(int fromPhotoId, Offset globalPos) {
-    final photo = _findPhoto(fromPhotoId);
+    final photo = _controller.findPhoto(fromPhotoId);
     if (photo == null) return;
     HapticFeedback.mediumImpact();
     setState(() {
-      _connectionHandler.startConnectingFromPhoto(
+      _controller.connectionHandler.startConnectingFromPhoto(
           fromPhotoId, globalPos, photo, _transformController.value);
     });
     _connectingAnimController.forward(from: 0);
@@ -532,17 +502,17 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 3. 如果检测到目标卡片/照片，调用 [_tryConnect] 尝试建立连接
   /// 5. 如果没有检测到目标，直接取消连线
   Future<void> _finishConnecting() async {
-    if (!_connectionHandler.isConnecting ||
-        (_connectionHandler.connectingFromCardId == null &&
-            _connectionHandler.connectingFromPhotoId == null)) {
+    if (!_controller.connectionHandler.isConnecting ||
+        (_controller.connectionHandler.connectingFromCardId == null &&
+            _controller.connectionHandler.connectingFromPhotoId == null)) {
       _endConnecting();
       return;
     }
 
     final cards = ref.read(cardListProvider).value ?? [];
     final photos = ref.read(photoListProvider).value ?? [];
-    final result = _connectionHandler.finishConnecting(
-        cards, photos, _navigationHandler.canvasScale);
+    final result = _controller.connectionHandler.finishConnecting(
+        cards, photos, _controller.navigationHandler.canvasScale);
 
     if (result != null) {
       if (result.cardId != null) {
@@ -557,21 +527,21 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
   /// 更新连线跟踪位置（拖拽过程中持续调用）
   void _updateConnecting(Offset globalPos) {
-    if (!_connectionHandler.isConnecting) return;
+    if (!_controller.connectionHandler.isConnecting) return;
     final cards = ref.read(cardListProvider).value ?? [];
     final photos = ref.read(photoListProvider).value ?? [];
     setState(() {
-      _connectionHandler.updateConnecting(globalPos, _cachedInverse,
-          cards, photos, _navigationHandler.canvasScale);
+      _controller.connectionHandler.updateConnecting(globalPos, _cachedInverse,
+          cards, photos, _controller.navigationHandler.canvasScale);
     });
   }
 
   /// 结束连线模式，重置连线和动画状态
   void _endConnecting() {
-    if (!_connectionHandler.isConnecting) return;
+    if (!_controller.connectionHandler.isConnecting) return;
     _connectingAnimController.reset();
     setState(() {
-      _connectionHandler.endConnecting();
+      _controller.connectionHandler.endConnecting();
     });
   }
 
@@ -584,9 +554,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 4. 通过 Riverpod provider 持久化新连线
   /// 5. 创建成功后触发中等强度触觉反馈
   Future<void> _tryConnect({int? toCardId, int? toPhotoId}) async {
-    if (!_connectionHandler.isConnecting) return;
-    final fromCardId = _connectionHandler.connectingFromCardId;
-    final fromPhotoId = _connectionHandler.connectingFromPhotoId;
+    if (!_controller.connectionHandler.isConnecting) return;
+    final fromCardId = _controller.connectionHandler.connectingFromCardId;
+    final fromPhotoId = _controller.connectionHandler.connectingFromPhotoId;
 
     // 不允许自连接
     if (fromCardId != null && fromCardId == toCardId) {
@@ -641,7 +611,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     FocusManager.instance.primaryFocus?.unfocus();
     _toolButtonsKey.currentState?.collapse();
 
-    if (_connectionHandler.isConnecting) {
+    if (_controller.connectionHandler.isConnecting) {
       _endConnecting();
       return;
     }
@@ -660,7 +630,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final hitId = RedThreadPainter.hitTestConnection(
       canvasPos,
       renderedConnections,
-      WallConstants.connectionHitThreshold / _navigationHandler.canvasScale,
+      WallConstants.connectionHitThreshold / _controller.navigationHandler.canvasScale,
     );
 
     if (hitId != null) {
@@ -675,7 +645,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 长按画布空白区域时，检测是否按在红线上。
   /// 如果命中红线，触发触觉反馈和绳子摆动动画。
   void _handleCanvasLongPress(Offset globalPosition) {
-    if (_connectionHandler.isConnecting) return;
+    if (_controller.connectionHandler.isConnecting) return;
 
     final canvasPos = MatrixUtils.transformPoint(
       _cachedInverse,
@@ -686,7 +656,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final hitId = RedThreadPainter.hitTestConnection(
       canvasPos,
       renderedConnections,
-      WallConstants.connectionHitThreshold / _navigationHandler.canvasScale,
+      WallConstants.connectionHitThreshold / _controller.navigationHandler.canvasScale,
     );
 
     if (hitId != null) {
@@ -723,7 +693,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final canvasPos = _randomPositionInViewport();
 
     final random = Random();
-    final rotation = (random.nextDouble() * WallConstants.maxPhotoRotationDegrees * 2 - WallConstants.maxPhotoRotationDegrees).toDouble();
+    final rotationDegrees = (random.nextDouble() * WallConstants.maxPhotoRotationDegrees * 2 - WallConstants.maxPhotoRotationDegrees).toDouble();
+    final rotation = rotationDegrees * pi / 180; // 转换为弧度，与 ClueCard 保持一致
 
     final photo = PhotoCard(
       imagePath: image.path,
@@ -741,55 +712,78 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 照片拖拽开始回调
   void _onPhotoDragStart(int photoId, Offset globalPos) {
     AppHaptics.selection();
-    final photos = ref.read(photoListProvider).value ?? [];
-    final photo = photos.firstWhereOrNull((p) => p.id == photoId);
+    final photo = _controller.findPhoto(photoId);
     if (photo == null) return;
 
     setState(() {
-      _photoDragHandler.onDragStart(photoId, globalPos, photo);
+      _controller.photoDragHandler.onDragStart(photoId, globalPos, photo);
     });
   }
 
   /// 照片拖拽更新回调
   void _onPhotoDragUpdate(Offset globalPos) {
     if (_canvasPinching.value) return;
-    if (!_photoDragHandler.isDragging) return;
+    if (!_controller.photoDragHandler.isDragging) return;
     _canvasMotionNotifier.value++;
 
-    final pos = _photoDragHandler.onDragUpdate(
-        globalPos, _navigationHandler.canvasScale);
+    final pos = _controller.photoDragHandler.onDragUpdate(
+        globalPos, _controller.navigationHandler.canvasScale);
     if (pos == null) return;
 
     ref
         .read(photoListProvider.notifier)
         .updatePhotoPositionInMemory(
-            _photoDragHandler.draggingPhotoId!, pos.dx, pos.dy);
+            _controller.photoDragHandler.draggingPhotoId!, pos.dx, pos.dy);
   }
 
   /// 照片拖拽结束回调
+  ///
+  /// 拖拽结束后有两种情况：
+  /// - **越界回弹**：照片被拖出画布边界，需要弹回到安全位置，
+  ///   此时更新位置到回弹目标并持久化
+  /// - **正常结束**：照片在画布内，直接持久化当前位置
   Future<void> _onPhotoDragEnd() async {
-    final oldPos = _photoDragHandler.photoStartPos;
-    final photoId = _photoDragHandler.onDragEnd();
+    // 在结束拖拽前记录旧位置（onDragEnd 会清除会话）
+    final oldPos = _controller.photoDragHandler.photoStartPos;
+    final photoId = _controller.photoDragHandler.onDragEnd();
 
     if (photoId != null) {
-      await ref
-          .read(photoListProvider.notifier)
-          .persistPhotoPosition(photoId);
+      AppHaptics.light();
 
-      final photo = ref.read(photoListProvider).value?.firstWhereOrNull(
-            (p) => p.id == photoId,
-          );
-      if (photo != null) {
-        final newPos = (photo.x, photo.y);
-        if (oldPos.dx != newPos.$1 || oldPos.dy != newPos.$2) {
-          ref.read(undoRedoProvider.notifier).executeCommand(
-                MovePhotosCommand(
-                  ref.read(photoListProvider.notifier),
-                  {photoId: (oldPos.dx, oldPos.dy)},
-                  {photoId: newPos},
-                ),
-              );
+      if (_controller.photoDragHandler.isBeyondBoundary) {
+        final springBackTarget = _controller.photoDragHandler.getSpringBackTarget();
+        ref.read(photoListProvider.notifier).updatePhotoPosition(
+              photoId,
+              springBackTarget.dx,
+              springBackTarget.dy,
+            );
+        // 注册撤销命令
+        ref.read(undoRedoProvider.notifier).executeCommand(
+              MovePhotosCommand(
+                ref.read(photoListProvider.notifier),
+                {photoId: (oldPos.dx, oldPos.dy)},
+                {photoId: (springBackTarget.dx, springBackTarget.dy)},
+              ),
+            );
+      } else {
+        // 获取当前位置
+        final photo = ref.read(photoListProvider).value?.firstWhereOrNull(
+              (p) => p.id == photoId,
+            );
+        if (photo != null) {
+          final newPos = (photo.x, photo.y);
+          if (oldPos.dx != newPos.$1 || oldPos.dy != newPos.$2) {
+            // 注册撤销命令
+            ref.read(undoRedoProvider.notifier).executeCommand(
+                  MovePhotosCommand(
+                    ref.read(photoListProvider.notifier),
+                    {photoId: (oldPos.dx, oldPos.dy)},
+                    {photoId: newPos},
+                  ),
+                );
+          }
         }
+        ref.read(photoListProvider.notifier).persistPhotoPosition(photoId);
       }
     }
   }
@@ -887,64 +881,35 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 将该卡片及其所有直接关联卡片加入高亮集合，
   /// 实现"选中即高亮关联网络"的视觉效果。
   void _selectCard(int cardId) {
-    AppHaptics.light();
-    final connections = ref.read(connectionListProvider).value ?? [];
-    setState(() {
-      _selection.selectCard(cardId, connections);
-    });
+    _controller.selectCard(cardId);
+    setState(() {});
   }
 
   /// 清除卡片/照片选中状态和高亮集合
   /// 删除当前选中的卡片或照片
   void _deleteSelected() {
-    if (_selection.selectedCardId != null) {
-      final cardId = _selection.selectedCardId!;
-      final cards = ref.read(cardListProvider).value ?? [];
-      final card = cards.firstWhereOrNull((c) => c.id == cardId);
-      if (card != null) {
-        final connections = ref.read(connectionListProvider).value ?? [];
-        final relatedConnections = connections
-            .where((c) =>
-                c.fromCardId == cardId || c.toCardId == cardId)
-            .toList();
-        ref.read(undoRedoProvider.notifier).executeCommand(
-              DeleteCardCommand(
-                ref.read(cardListProvider.notifier),
-                ref.read(connectionListProvider.notifier),
-                card,
-                relatedConnections,
-              ),
-            );
-      }
-      _clearSelection();
-    } else if (_selection.selectedPhotoId != null) {
-      final photoId = _selection.selectedPhotoId!;
-      final photos = ref.read(photoListProvider).value ?? [];
-      final photo = photos.firstWhereOrNull((p) => p.id == photoId);
-      if (photo != null) {
-        final connections = ref.read(connectionListProvider).value ?? [];
-        final relatedConnections = connections
-            .where((c) =>
-                c.fromPhotoId == photoId || c.toPhotoId == photoId)
-            .toList();
-        ref.read(undoRedoProvider.notifier).executeCommand(
-              DeletePhotoCommand(
-                ref.read(photoListProvider.notifier),
-                ref.read(connectionListProvider.notifier),
-                photo,
-                relatedConnections,
-              ),
-            );
-      }
-      _clearSelection();
-    }
+    _controller.deleteSelected();
+    setState(() {});
   }
 
   void _clearSelection() {
-    if (!_selection.hasSelection) return;
-    setState(() {
-      _selection.clearSelection();
-    });
+    if (!_controller.selection.hasSelection) return;
+    _controller.clearSelection();
+    setState(() {});
+  }
+
+  /// 更新浮动动画 Ticker 状态
+  ///
+  /// 当有卡片或照片处于选中/高亮状态时启动 Ticker，否则停止。
+  /// 避免在没有浮动卡片时持续运行 Ticker 浪费资源。
+  void _updateFloatTicker(List<ClueCard> cards, List<PhotoCard> photos) {
+    final shouldRun = _controller.hasFloatingCards(cards, photos);
+
+    if (shouldRun && !_floatTicker.isActive) {
+      _floatTicker.start();
+    } else if (!shouldRun && _floatTicker.isActive) {
+      _floatTicker.stop();
+    }
   }
 
   /// 搜索输入变化处理
@@ -954,18 +919,18 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     List<PhotoCard> photos,
     List<Connection> connections,
   ) {
-    _searchCtrl.updateQuery(query,
+    _controller.searchCtrl.updateQuery(query,
         cards: cards,
         photos: photos,
         connections: connections,
         onSearched: () {
-      _searchCtrl.navigateToFirstResult(
+      _controller.searchCtrl.navigateToFirstResult(
         cards: cards,
         photos: photos,
         renderedConnections: ref.read(renderedConnectionsProvider),
         transformController: _transformController,
         zoomController: _zoomController,
-        navigationHandler: _navigationHandler,
+        navigationHandler: _controller.navigationHandler,
         screenSize: MediaQuery.of(context).size,
       );
       setState(() {});
@@ -1019,11 +984,14 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final connections = connectionsAsync.value ?? const <Connection>[];
     final photos = photosAsync.value ?? const <PhotoCard>[];
 
+    // 根据是否有浮动卡片启停 Ticker
+    _updateFloatTicker(cards, photos);
+
     return _ClueWallShortcuts(
-      showSearch: _searchCtrl.showSearch,
-      hasSelection: _selection.hasSelection,
+      showSearch: _controller.searchCtrl.showSearch,
+      hasSelection: _controller.selection.hasSelection,
       onCloseSearch: () {
-        _searchCtrl.close();
+        _controller.searchCtrl.close();
         setState(() {});
       },
       onClearSelection: _clearSelection,
@@ -1046,8 +1014,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
               // 搜索匹配结果：卡片、照片、连线
               // 搜索状态由 AppSearchController 管理
-              final isSearching = _searchCtrl.isSearching;
-              final searchMatches = _searchCtrl.results;
+              final isSearching = _controller.searchCtrl.isSearching;
+              final searchMatches = _controller.searchCtrl.results;
               final cardWidgets = _buildCardWidgets(
                   cards, isSearching ? searchMatches.cardIds : null);
               final photoWidgets = _buildPhotoWidgets(
@@ -1068,10 +1036,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                         transformController: _transformController,
                         zoomController: _zoomController,
                         onInteractionEnd: () => _clampCanvasBounds(),
-                        connectionHandler: _connectionHandler,
+                        connectionHandler: _controller.connectionHandler,
                         updateConnecting: (pos) => _updateConnecting(pos),
                         isCardInteracting: () =>
-                            _cardPointerDown.value || _dragHandler.isDragging,
+                            _cardPointerDown.value || _controller.dragHandler.isDragging,
                         onPinchStatusChanged: _handleCanvasPinchStatusChanged,
                         onTap: (details) => _handleCanvasTap(details),
                         onDoubleTap: () => _zoomToFit(cards),
@@ -1103,7 +1071,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                             // === 第 4 层：正在连线的动态线 ===
                             // 连线模式下从源卡片到手指位置的动态红线，
                             // IgnorePointer 避免阻挡下层交互
-                            if (_connectionHandler.isConnecting)
+                            if (_controller.connectionHandler.isConnecting)
                               IgnorePointer(
                                 child: AnimatedBuilder(
                                   animation: _connectingAnimController,
@@ -1113,9 +1081,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                                           WallConstants.canvasWidth,
                                           WallConstants.canvasHeight),
                                       painter: ConnectingLinePainter(
-                                        from: _connectionHandler
+                                        from: _controller.connectionHandler
                                             .connectingFromPos,
-                                        to: _connectionHandler
+                                        to: _controller.connectionHandler
                                             .connectingCurrentPos,
                                         opacity:
                                             _connectingAnimController.value,
@@ -1134,7 +1102,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                             ...photoWidgets.floating,
                             // === 第 7 层：搜索结果徽章 / 空状态提示 ===
                             if (isSearching)
-                              SearchResultBadge(count: _searchCtrl.resultCount),
+                              SearchResultBadge(count: _controller.searchCtrl.resultCount),
                             if (cards.isEmpty && photos.isEmpty)
                               const Positioned.fill(
                                 child: Center(child: EmptyStateHint()),
@@ -1145,17 +1113,17 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                     ),
                   ),
                   TopBar(
-                    showSearch: _searchCtrl.showSearch,
-                    searchController: _searchCtrl.textController,
+                    showSearch: _controller.searchCtrl.showSearch,
+                    searchController: _controller.searchCtrl.textController,
                     cardCount: cards.length,
                     onSearchChanged: (query) =>
                         _onSearchChanged(query, cards, photos, connections),
                     onSearchToggle: () {
-                      _searchCtrl.toggle();
+                      _controller.searchCtrl.toggle();
                       setState(() {});
                     },
                   ),
-                  if (_connectionHandler.isConnecting) const ConnectingHint(),
+                  if (_controller.connectionHandler.isConnecting) const ConnectingHint(),
                   ToolButtons(
                     key: _toolButtonsKey,
                     onAddPhoto: _showAddPhotoMenu,
@@ -1197,8 +1165,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       final isMatch =
           matchIds != null && matchIds.contains(card.id); // 是否匹配搜索结果
       final isFloating = card.id != null &&
-          _selection.highlightedCardIds.contains(card.id!); // 是否需要浮动（选中/高亮）
-      final isPrimary = card.id == _selection.selectedCardId; // 是否为当前选中的主卡片
+          _controller.selection.highlightedCardIds.contains(card.id!); // 是否需要浮动（选中/高亮）
+      final isPrimary = card.id == _controller.selection.selectedCardId; // 是否为当前选中的主卡片
 
       final widget = Positioned(
         left: card.x,
@@ -1207,10 +1175,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
           child: ClueCardWidget(
             key: ValueKey(card.id),
             card: card,
-            scale: _navigationHandler.canvasScale,
-            isConnectingTarget: _connectionHandler.isConnecting &&
+            scale: _controller.navigationHandler.canvasScale,
+            isConnectingTarget: _controller.connectionHandler.isConnecting &&
                 card.id !=
-                    _connectionHandler
+                    _controller.connectionHandler
                         .connectingFromCardId, // 连线模式下非源卡片显示为可连接目标
             isHighlighted: isMatch,
             isFloating: isFloating,
@@ -1219,10 +1187,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
             onPointerDown: () => _cardPointerDown.value = true,
             onPointerUp: () => _cardPointerDown.value = false,
             onTap: () async {
-              if (_connectionHandler.isConnecting && card.id != null) {
+              if (_controller.connectionHandler.isConnecting && card.id != null) {
                 await _tryConnect(toCardId: card.id!);
               } else if (card.id != null) {
-                if (_selection.selectedCardId == card.id) {
+                if (_controller.selection.selectedCardId == card.id) {
                   _clearSelection();
                 } else {
                   _selectCard(card.id!);
@@ -1233,14 +1201,14 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
               _showCardDetail(card);
             },
             onDragStart: (globalPos) {
-              if (!_connectionHandler.isConnecting && !_canvasPinching.value) {
+              if (!_controller.connectionHandler.isConnecting && !_canvasPinching.value) {
                 _onCardDragStart(card.id!, globalPos);
               }
             },
             onDragUpdate: _onCardDragUpdate,
             onDragEnd: _onCardDragEnd,
             onPinLongPressStart: (globalPos) {
-              if (!_connectionHandler.isConnecting && card.id != null) {
+              if (!_controller.connectionHandler.isConnecting && card.id != null) {
                 _startConnectingFromPin(card.id!, globalPos);
               }
             },
@@ -1278,10 +1246,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
     for (final photo in photos) {
       final isMatch = matchIds != null && matchIds.contains(photo.id);
-      final isPrimary = photo.id == _selection.selectedPhotoId;
+      final isPrimary = photo.id == _controller.selection.selectedPhotoId;
       final isFloating = photo.id != null &&
-          (_selection.selectedPhotoId == photo.id ||
-              _selection.highlightedPhotoIds.contains(photo.id));
+          (_controller.selection.selectedPhotoId == photo.id ||
+              _controller.selection.highlightedPhotoIds.contains(photo.id));
 
       final widget = Positioned(
         left: photo.x,
@@ -1292,8 +1260,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
             photo: photo,
             isPrimary: isPrimary,
             isHighlighted: isMatch || isFloating,
-            isConnectingTarget: _connectionHandler.isConnecting &&
-                photo.id != _connectionHandler.connectingFromPhotoId,
+            isConnectingTarget: _controller.connectionHandler.isConnecting &&
+                photo.id != _controller.connectionHandler.connectingFromPhotoId,
             onPointerDown: () => _cardPointerDown.value = true,
             onPointerUp: () => _cardPointerDown.value = false,
             onDragStart: (globalPos) {
@@ -1304,16 +1272,16 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
             onDragUpdate: _onPhotoDragUpdate,
             onDragEnd: _onPhotoDragEnd,
             onTap: () async {
-              if (_connectionHandler.isConnecting && photo.id != null) {
+              if (_controller.connectionHandler.isConnecting && photo.id != null) {
                 await _tryConnect(toPhotoId: photo.id!);
               } else {
-                setState(() {
-                  if (_selection.selectedPhotoId == photo.id) {
-                    _selection.selectedPhotoId = null;
-                  } else {
-                    _selection.selectPhoto(photo.id!);
-                  }
-                });
+                if (_controller.selection.selectedPhotoId == photo.id) {
+                  _clearSelection();
+                } else {
+                  setState(() {
+                    _controller.selectPhoto(photo.id!);
+                  });
+                }
               }
             },
             onDoubleTap: () {
@@ -1325,7 +1293,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
               );
             },
             onPinLongPressStart: (globalPos) {
-              if (!_connectionHandler.isConnecting && photo.id != null) {
+              if (!_controller.connectionHandler.isConnecting && photo.id != null) {
                 _startConnectingFromPhotoPin(photo.id!, globalPos);
               }
             },

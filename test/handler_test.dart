@@ -205,14 +205,14 @@ void main() {
     });
 
     test('selectPhoto sets photo id', () {
-      manager.selectPhoto(42);
+      manager.selectPhoto(42, []);
       expect(manager.selectedPhotoId, 42);
       expect(manager.hasSelection, isTrue);
     });
 
     test('clearSelection resets everything', () {
       manager.selectCard(1, [Connection(fromCardId: 1, toCardId: 2)]);
-      manager.selectPhoto(10);
+      manager.selectPhoto(10, []);
       manager.clearSelection();
       expect(manager.hasSelection, isFalse);
       expect(manager.selectedCardId, isNull);
