@@ -1,52 +1,247 @@
-# Reticence · 缄默
+<div align="center">
 
-关系线索墙 — 用红线和图钉编织你的人际网络。  
-A local-first relationship clue wall built with Flutter.
+# 🔍 Reticence
 
-<p align="center"><img src="Reticence.png" width="180" alt="Reticence app icon"></p>
+**关系线索墙 —— 用红线和图钉编织你的人际网络**
 
-## 特性
+*A relationship clue wall app with red thread physics simulation*
 
-- **单画布线索墙**：卡片、照片和连线都在同一张软木板上
-- **红线物理**：关系线有弹性和阻尼，可以拖动、拉扯、重新钉住
-- **手账 / 剪贴簿美学**：纸张纹理、图钉、手写字体和暖色主题
-- **本地优先**：Drift / SQLite 持久化，无账号、无云端、无网络请求
-- **编辑能力**：撤销 / 重做、搜索、卡片详情、关系备注、导出
-- **照片卡片**：从相册添加照片，本地存储
+![Flutter](https://img.shields.io/badge/Flutter-3.6+-02569B?logo=flutter)
+![Dart](https://img.shields.io/badge/Dart-3.6+-0175C2?logo=dart)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-blue)
 
-<p align="center"><img src="assets/images/onboard_connect.png" alt="Onboarding illustration"></p>
+---
 
-## 技术栈
+<img src="assets/images/splash_logo.png" width="400" alt="Reticence Logo">
 
-- Flutter / Dart 3.6+
-- Riverpod、Drift（SQLite）、vector_math
-- golden_toolkit、integration_test
-- 自定义 Canvas painter（红线、纸张纹理、图钉）
+</div>
 
-## 运行
+## 📖 简介 | Introduction
+
+**Reticence**（沉默）是一款侦探风格的关系线索墙应用。想象一位侦探在昏暗的办公室里，将线索卡片钉在软木板上，用红线串联关联线索——这就是 Reticence 的核心体验。
+
+**Reticence** is a detective-style relationship clue wall app. Imagine a detective in a dim office, pinning clue cards to a cork board and connecting related clues with red threads — that's the core experience of Reticence.
+
+## ✨ 功能特性 | Features
+
+### 🎯 核心功能 | Core Features
+
+| 功能 | 描述 |
+|------|------|
+| 🗂️ **线索卡片** | 创建人物、地点、事件三种类型的线索卡片，支持自定义标签和描述 |
+| 📸 **照片卡片** | 拍立得/复古两种风格的照片卡片，支持从相册导入 |
+| 🧵 **红线连接** | 用红线连接关联的卡片，支持自定义关系标签（如"同事"、"嫌疑人"） |
+| 🔍 **全局搜索** | 搜索卡片名称、标签、描述和连线标签，快速定位目标 |
+| ↩️ **撤销/重做** | 完整的操作历史，支持 Ctrl+Z / Ctrl+Y 快捷键 |
+| 💾 **本地存储** | 使用 SQLite 数据库持久化所有数据，离线可用 |
+| 📤 **导出分享** | 将线索墙截图导出为 PNG，支持系统分享菜单 |
+
+### 🎨 视觉体验 | Visual Experience
+
+- **软木板美学**：精心设计的暖棕色色调，模拟真实软木板质感
+- **红线物理模拟**：红线具有下垂效果和轻微摆动动画，如同真实棉线
+- **图钉装饰**：黄铜、红、绿、蓝四种图钉颜色，固定卡片的立体感
+- **卡片浮动效果**：选中的卡片会轻微浮动，营造层次感
+- **纸张纹理**：卡片表面的旧纸纹理和噪点效果，增加年代感
+- **暗色模式**：完整的暗色主题支持，保持侦探办公室氛围
+
+### 🕹️ 交互设计 | Interaction Design
+
+- **双指缩放**：在 0.3x - 3.0x 范围内自由缩放画布
+- **拖拽移动**：直接拖拽卡片到任意位置
+- **图钉连线**：长按图钉拖拽到目标卡片即可建立连接
+- **双击编辑**：双击卡片查看详情并编辑
+- **点击红线**：点击连线查看和编辑关系标签
+- **键盘快捷键**：
+  - `Ctrl+Z` 撤销
+  - `Ctrl+Y` / `Ctrl+Shift+Z` 重做
+  - `Delete` 删除选中
+  - `Escape` 取消选择
+
+## 📱 截图 | Screenshots
+
+<div align="center">
+<p><i>Coming soon...</i></p>
+</div>
+
+## 🛠️ 技术栈 | Tech Stack
+
+| 类别 | 技术 |
+|------|------|
+| **框架** | [Flutter](https://flutter.dev/) 3.6+ |
+| **语言** | [Dart](https://dart.dev/) 3.6+ |
+| **状态管理** | [Riverpod](https://riverpod.dev/) 2.6+ |
+| **数据库** | [Drift](https://drift.simonbinder.eu/) (SQLite) 2.22+ |
+| **架构模式** | Repository + Provider + Command Pattern |
+| **自定义绘制** | CustomPainter (红线物理、纸张纹理、图钉) |
+
+## 📁 项目结构 | Project Structure
+
+```
+lib/
+├── main.dart                    # 应用入口
+├── models/                      # 数据模型
+│   ├── card_model.dart         # 线索卡片模型
+│   ├── connection_model.dart   # 连接关系模型
+│   ├── photo_card_model.dart   # 照片卡片模型
+│   └── rendered_connection.dart # 渲染用连接数据
+├── providers/                   # Riverpod 状态管理
+│   ├── card_provider.dart      # 卡片状态
+│   ├── connection_provider.dart # 连接状态
+│   ├── photo_provider.dart     # 照片状态
+│   ├── undo_redo_provider.dart # 撤销/重做
+│   ├── commands/               # 命令模式实现
+│   └── handlers/               # 交互处理器
+├── screens/                     # 页面
+│   └── clue_wall_screen.dart   # 线索墙主屏幕
+├── services/                    # 服务层
+│   ├── database/               # Drift 数据库
+│   └── repositories/           # 数据仓库
+├── theme/                       # 主题配置
+│   ├── app_colors.dart         # 色彩体系
+│   ├── app_typography.dart     # 字体排版
+│   └── wall_constants.dart     # 画布常量
+├── utils/                       # 工具类
+│   ├── canvas_matrix.dart      # 画布矩阵计算
+│   ├── export_utils.dart       # 导出工具
+│   └── gesture_coordinator.dart # 手势协调
+└── widgets/                     # 组件
+    ├── clue_card_widget.dart   # 线索卡片
+    ├── photo_card_widget.dart  # 照片卡片
+    ├── dialogs/                # 对话框
+    └── painters/               # 自定义绘制器
+        ├── red_thread_painter.dart    # 红线绘制
+        ├── pushpin_decorator.dart     # 图钉装饰
+        └── paper_texture_background.dart # 纸张纹理
+```
+
+## 🚀 快速开始 | Getting Started
+
+### 环境要求 | Prerequisites
+
+- Flutter SDK >= 3.6.0
+- Dart SDK >= 3.6.0
+- Android Studio / VS Code
+- Android SDK 或 Xcode (iOS)
+
+### 安装步骤 | Installation
 
 ```bash
+# 克隆仓库 | Clone the repository
+git clone https://github.com/your-username/reticence.git
+
+# 进入项目目录 | Navigate to project directory
+cd reticence
+
+# 安装依赖 | Install dependencies
 flutter pub get
+
+# 运行代码生成 | Run code generation
+dart run build_runner build
+
+# 运行应用 | Run the app
 flutter run
 ```
 
-测试：
+### 代码生成 | Code Generation
+
+本项目使用代码生成来减少模板代码：
 
 ```bash
-flutter test
-flutter test integration_test
+# 监听文件变化并自动生成 | Watch and auto-generate
+dart run build_runner watch
+
+# 一次性生成 | One-time generation
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-## 文档
+## 🏗️ 架构设计 | Architecture
 
-- [spec.md](spec.md) — 产品与交互规格
-- [checklist.md](checklist.md) — MVP 验收清单
-- [tasks.md](tasks.md) — 开发任务拆分
+### 状态管理 | State Management
 
-## 第三方资产
+采用 **Riverpod** 进行状态管理，结合 **Command Pattern** 实现撤销/重做：
 
-项目内置了几套开源字体，许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。应用图标、插画和纹理为本项目自有资产。
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      UI Layer (Widgets)                      │
+├─────────────────────────────────────────────────────────────┤
+│                   Provider Layer (Riverpod)                  │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
+│  │ CardProvider │ │ConnectionProvider│ │ PhotoProvider│         │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘           │
+│         │               │               │                   │
+│  ┌──────▼───────────────▼───────────────▼──────┐           │
+│  │              UndoRedoProvider                │           │
+│  │         (Command Pattern Stack)              │           │
+│  └─────────────────────────────────────────────┘           │
+├─────────────────────────────────────────────────────────────┤
+│                   Repository Layer                           │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
+│  │ CardRepository│ │ConnectionRepository│ │PhotoRepository│     │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘           │
+│         └───────────────┼───────────────┘                   │
+│                         ▼                                   │
+│              ┌─────────────────────┐                        │
+│              │   Drift Database    │                        │
+│              │   (SQLite Local)    │                        │
+│              └─────────────────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## License
+### 渲染层次 | Rendering Layers
 
-MIT © 2026 xx
+画布内容按以下层次从下到上渲染，模拟真实线索墙效果：
+
+```
+7. 搜索结果徽章 / 空状态提示
+6. 正在拖拽的照片
+5. 浮动/选中卡片 (在红线之上)
+4. 正在连线的动态线
+3. 红线连接层 (IgnorePointer)
+2. 独立照片卡片
+1. 普通卡片 (被红线覆盖)
+```
+
+## 🎨 设计语言 | Design Language
+
+### 色彩体系 | Color System
+
+| 用途 | 颜色 | 说明 |
+|------|------|------|
+| 软木板 | `#4A3C30` | 模拟真实软木板的棕褐色调 |
+| 旧纸张 | `#EDE5D5` | 泛黄的旧纸色，非纯白 |
+| 墨水 | `#1A1308` | 老式钢笔墨水的深棕黑色 |
+| 红线 | `#7A2A20` | 偏暗红的棉线颜色 |
+| 黄铜图钉 | `#B09840` | 金属质感的图钉 |
+
+### 字体 | Typography
+
+- **Caveat**：手写风格，用于标题和装饰文字
+- **Source Serif 4**：衬线字体，用于英文正文
+- **LXGW WenKai**：霞鹜文楷，用于中文正文
+- **HarmonyOS Sans SC**：鸿蒙字体，用于 UI 元素
+- **Noto Serif CJK SC**：思源宋体，用于强调文字
+
+## 📄 许可证 | License
+
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 致谢 | Acknowledgments
+
+- [Flutter](https://flutter.dev/) - 构建精美应用的 UI 工具包
+- [Riverpod](https://riverpod.dev/) - 现代化的状态管理方案
+- [Drift](https://drift.simonbinder.eu/) - 类型安全的 SQLite 封装
+- 所有为这个项目提供灵感的侦探小说和电影
+
+---
+
+<div align="center">
+
+**用红线编织真相，用图钉固定线索**
+
+*Weave truth with red threads, fix clues with pushpins*
+
+</div>
