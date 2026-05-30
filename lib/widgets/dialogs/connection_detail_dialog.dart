@@ -181,34 +181,9 @@ class _ConnectionDetailDialogState
           // 拖拽手柄
           const AppDragHandle(),
           // 标题
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.redThread.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.timeline,
-                    size: 18,
-                    color: AppColors.redThread.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '关系详情',
-                  style: TextStyle(
-                    color: AppColors.inkBlack.withValues(alpha: 0.85),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
+          const AppDialogTitle(
+            icon: Icons.timeline,
+            title: '关系详情',
           ),
           const SizedBox(height: 16),
           // 人物关系展示区：起始人物 → 目标人物（带入场动画）
@@ -220,7 +195,7 @@ class _ConnectionDetailDialogState
                 end: Offset.zero,
               ).animate(staggeredInterval(0.1, 0.5)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
@@ -273,7 +248,7 @@ class _ConnectionDetailDialogState
                 end: Offset.zero,
               ).animate(staggeredInterval(0.25, 0.7)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Wrap(
                   spacing: 10,
                   runSpacing: 8,
@@ -299,7 +274,7 @@ class _ConnectionDetailDialogState
           FadeTransition(
             opacity: staggeredInterval(0.4, 0.8),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
               child: AppTextField(
                 controller: _labelController,
                 hint: '关系描述',
@@ -307,7 +282,7 @@ class _ConnectionDetailDialogState
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: DialogConstants.sectionGapLarge),
           // 操作按钮栏：保存 / 删除（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.55, 1.0),
@@ -317,7 +292,7 @@ class _ConnectionDetailDialogState
                 end: Offset.zero,
               ).animate(staggeredInterval(0.55, 1.0)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Row(
                   children: [
                     Expanded(
@@ -329,7 +304,7 @@ class _ConnectionDetailDialogState
                         isLoading: _isLoading,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: DialogConstants.buttonGap),
                     Expanded(
                       child: AppActionButton(
                         label: '删除',
@@ -343,7 +318,7 @@ class _ConnectionDetailDialogState
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DialogConstants.bottomPadding),
         ],
       ),
     );

@@ -59,12 +59,12 @@ class ClueCard extends Equatable {
 
   /// 卡片宽度
   ///
-  /// 卡片在墙面上的逻辑宽度（像素），默认为 170。
+  /// 卡片在墙面上的逻辑宽度（像素），默认为 160。
   final double width;
 
   /// 卡片高度
   ///
-  /// 卡片在墙面上的逻辑高度（像素），默认为 100。
+  /// 卡片在墙面上的逻辑高度（像素），默认为 90。
   final double height;
 
   /// 卡片创建时间
@@ -90,8 +90,8 @@ class ClueCard extends Equatable {
     this.x = 0,
     this.y = 0,
     this.rotation = 0,
-    this.width = 170.0,
-    this.height = 100.0,
+    this.width = 160.0,
+    this.height = 90.0,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),

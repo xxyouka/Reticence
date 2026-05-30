@@ -30,39 +30,16 @@ void showPhotoStylePicker(
         children: [
           const AppDragHandle(),
           // 标题
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.sepia.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.style,
-                    size: 18,
-                    color: AppColors.sepia.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '照片风格',
-                  style: TextStyle(
-                    color: AppColors.inkBlack.withValues(alpha: 0.85),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
+          const AppDialogTitle(
+            icon: Icons.style,
+            title: '照片风格',
+            iconColor: AppColors.inkBlack,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: DialogConstants.sectionGapLarge),
           // 风格选项
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding:
+                const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
             child: Row(
               children: [
                 Expanded(
@@ -93,7 +70,7 @@ void showPhotoStylePicker(
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: DialogConstants.sectionGapLarge),
         ],
       ),
     ),

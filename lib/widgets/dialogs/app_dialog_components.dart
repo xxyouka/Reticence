@@ -18,6 +18,37 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 
+/// 对话框通用布局常量
+///
+/// 集中管理所有对话框中重复出现的间距、字号和图标尺寸，
+/// 避免在各对话框文件中散落相同的魔法数字。
+class DialogConstants {
+  DialogConstants._();
+
+  // ---- 水平内边距 ----
+  static const double horizontalPadding = 24.0; // 对话框内容区水平内边距
+
+  // ---- 标题行 ----
+  static const double titleIconSize = 18.0; // 标题图标尺寸
+  static const double titleIconPadding = 8.0; // 标题图标容器内边距
+  static const double titleIconBorderRadius = 8.0; // 标题图标容器圆角
+  static const double titleIconGap = 12.0; // 标题图标与文字间距
+  static const double titleFontSize = 18.0; // 标题字号
+  static const double titleLetterSpacing = 0.3; // 标题字间距
+
+  // ---- 段落间距 ----
+  static const double sectionGapSmall = 10.0; // 输入框之间间距
+  static const double sectionGapMedium = 18.0; // 标题与内容之间间距
+  static const double sectionGapLarge = 20.0; // 内容与按钮之间间距
+  static const double bottomPadding = 24.0; // 对话框底部内边距
+
+  // ---- 按钮行 ----
+  static const double buttonGap = 8.0; // 按钮之间间距
+  static const double buttonHeight = 40.0; // 操作按钮高度
+  static const double buttonBorderRadius = 8.0; // 操作按钮圆角
+  static const double buttonFontSize = 13.0; // 按钮字号
+}
+
 /// 对话框入场动画 Mixin
 ///
 /// 为所有底部抽屉对话框提供统一的入场动画：
@@ -52,6 +83,66 @@ mixin DialogEntranceMixin<T extends StatefulWidget>
     return CurvedAnimation(
       parent: entranceController,
       curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+  }
+}
+
+/// 对话框标题行
+///
+/// 统一的标题行布局：左侧图标容器 + 间距 + 标题文字 + 可选右侧子组件。
+/// 所有对话框标题均应通过此组件构建，确保视觉一致性。
+class AppDialogTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color? iconColor;
+  final Color? iconBgColor;
+  final Widget? trailing;
+
+  const AppDialogTitle({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.iconColor,
+    this.iconBgColor,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: DialogConstants.horizontalPadding),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(DialogConstants.titleIconPadding),
+            decoration: BoxDecoration(
+              color: iconBgColor ??
+                  AppColors.redThread.withValues(alpha: 0.08),
+              borderRadius:
+                  BorderRadius.circular(DialogConstants.titleIconBorderRadius),
+            ),
+            child: Icon(
+              icon,
+              size: DialogConstants.titleIconSize,
+              color: iconColor ?? AppColors.redThread.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: DialogConstants.titleIconGap),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: AppColors.inkBlack.withValues(alpha: 0.85),
+                fontSize: DialogConstants.titleFontSize,
+                fontWeight: FontWeight.w700,
+                letterSpacing: DialogConstants.titleLetterSpacing,
+              ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
     );
   }
 }
@@ -214,11 +305,11 @@ class _AppActionButtonState extends State<AppActionButton>
           );
         },
         child: SizedBox(
-          height: 40,
+          height: DialogConstants.buttonHeight,
           child: Container(
             decoration: BoxDecoration(
               color: widget.filled ? widget.color : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DialogConstants.buttonBorderRadius),
               border: widget.filled
                   ? null
                   : Border.all(
@@ -253,7 +344,7 @@ class _AppActionButtonState extends State<AppActionButton>
                             ? AppColors.surfaceOf(context)
                                 .withValues(alpha: 0.95)
                             : widget.color,
-                        fontSize: 13,
+                        fontSize: DialogConstants.buttonFontSize,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.3,
                       ),
@@ -485,7 +576,7 @@ class _AppConfirmSheetState extends State<AppConfirmSheet>
           ),
           const SizedBox(height: 14),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
             child: Text(
               widget.title,
               textAlign: TextAlign.center,
@@ -499,7 +590,7 @@ class _AppConfirmSheetState extends State<AppConfirmSheet>
           ),
           const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
             child: Text(
               widget.message,
               textAlign: TextAlign.center,
@@ -511,7 +602,7 @@ class _AppConfirmSheetState extends State<AppConfirmSheet>
           ),
           const SizedBox(height: 22),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
             child: Row(
               children: [
                 Expanded(
@@ -522,7 +613,7 @@ class _AppConfirmSheetState extends State<AppConfirmSheet>
                     onTap: () => Navigator.of(context).pop(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: DialogConstants.buttonGap),
                 Expanded(
                   child: AppActionButton(
                     label: '删除',

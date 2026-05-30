@@ -228,46 +228,13 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
           // 拖拽手柄
           const AppDragHandle(),
           // 标题栏：人物姓名 + 连线数量徽章
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                // 人物头像占位图标
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.agedPaper.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.sepia.withValues(alpha: 0.15),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.person,
-                    size: 20,
-                    color: AppColors.sepia.withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // 人物姓名，单行显示，溢出省略
-                Expanded(
-                  child: Text(
-                    widget.card.name,
-                    style: TextStyle(
-                      color: AppColors.inkBlack.withValues(alpha: 0.85),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                // 连线数量徽章
-                if (cardConnections.isNotEmpty)
-                  Container(
+          AppDialogTitle(
+            icon: Icons.person,
+            title: widget.card.name,
+            iconBgColor: AppColors.agedPaper.withValues(alpha: 0.5),
+            iconColor: AppColors.sepia.withValues(alpha: 0.6),
+            trailing: cardConnections.isNotEmpty
+                ? Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -295,11 +262,10 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                         ),
                       ],
                     ),
-                  ),
-              ],
-            ),
+                  )
+                : null,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: DialogConstants.sectionGapMedium),
           // 输入框区域（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.1, 0.55),
@@ -308,7 +274,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
               children: [
                 // 姓名编辑框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _nameController,
                     hint: '姓名',
@@ -316,20 +282,20 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                     textInputAction: TextInputAction.next,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 标签编辑框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _tagsController,
                     hint: '标签（逗号分隔）',
                     textInputAction: TextInputAction.next,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 备注编辑框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                       controller: _descController, hint: '备注', maxLines: 2),
                 ),
@@ -342,12 +308,12 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
             FadeTransition(
               opacity: staggeredInterval(0.3, 0.7),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: _buildConnectedPreview(),
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: DialogConstants.sectionGapLarge),
           // 操作按钮栏：连线 / 保存 / 删除（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.5, 1.0),
@@ -357,7 +323,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                 end: Offset.zero,
               ).animate(staggeredInterval(0.5, 1.0)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Row(
                   children: [
                     Expanded(
@@ -371,7 +337,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: DialogConstants.buttonGap),
                     Expanded(
                       child: AppActionButton(
                         label: '保存',
@@ -381,7 +347,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                         isLoading: _isLoading,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: DialogConstants.buttonGap),
                     Expanded(
                       child: AppActionButton(
                         label: '删除',
@@ -395,7 +361,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DialogConstants.bottomPadding),
         ],
       ),
     );

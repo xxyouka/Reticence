@@ -66,7 +66,10 @@ class WallConstants {
   static const double maxSag = 30.0; // 红线最大下垂量（像素）
   static const double randomOffsetRange = 120; // 水平随机偏移范围
   static const double randomOffsetRangeY = 100; // 垂直随机偏移范围
-  static const double maxRotationDegrees = 4.0; // 最大随机旋转角度（度）
+  static const double maxRotationDegrees = 4.0; // 卡片最大随机旋转角度（度）
+  static const double maxPhotoRotationDegrees = 5.0; // 照片最大随机旋转角度（度）
+  static const double overlapFactor = 0.7; // 重叠检测系数（占卡片尺寸的比例）
+  static const double exportPixelRatio = 2.0; // 导出截图像素比
 
   // ============================================================
   // 动画时长（Animation Durations）

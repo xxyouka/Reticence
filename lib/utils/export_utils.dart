@@ -14,6 +14,8 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../theme/wall_constants.dart';
+
 /// 导出工具类
 ///
 /// 提供静态方法用于将 Flutter Widget 树截图并导出。
@@ -30,8 +32,7 @@ class ExportUtils {
           as RenderRepaintBoundary?;
       if (boundary == null) return null;
 
-      // 2x 像素比，保证高清截图
-      final image = await boundary.toImage(pixelRatio: 2.0);
+      final image = await boundary.toImage(pixelRatio: WallConstants.exportPixelRatio);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
 

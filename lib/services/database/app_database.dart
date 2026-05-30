@@ -177,6 +177,7 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(cardsTable, cardsTable.height);
             }
             // 迁移旧 scale 数据到 width/height（scale 列保留但不再使用）
+            // 注意：170.0/100.0 是 v8 之前的旧默认卡片尺寸，此处必须与旧数据一致
             final cardScaleExists = await _columnExists('cards_table', 'scale');
             if (cardScaleExists) {
               await customStatement(
@@ -194,6 +195,7 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(photosTable, photosTable.height);
             }
             // 迁移旧 scale 数据到 width/height
+            // 注意：140.0/180.0 是照片卡片的默认尺寸，此处必须与旧数据一致
             final photoScaleExists =
                 await _columnExists('photos_table', 'scale');
             if (photoScaleExists) {

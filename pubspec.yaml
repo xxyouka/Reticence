@@ -46,7 +46,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/textures/
-    - assets/pins/
     - assets/images/
   fonts:
     - family: Caveat

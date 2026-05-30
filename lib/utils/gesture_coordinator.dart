@@ -91,13 +91,16 @@ class GestureCoordinator {
   /// 注意：本协调器不直接计时，此常量供外部计时器使用。
   static const int longPressTimeout = 300;
 
-  /// 触摸移动阈值（像素）
+  /// 手势状态机触摸移动阈值（像素）
   ///
   /// 手指移动距离超过此值才识别为拖拽意图。
   /// 12px 略小于 Android 默认的 touchSlop（约 8dp 逻辑像素），
   /// 因为在软木板这种自由画布上，用户期望更灵敏的拖拽响应。
   /// 同时也足够大以过滤掉手指按下时的自然抖动。
-  static const double touchSlop = 12.0;
+  ///
+  /// 注意：与 [WallConstants.touchSlop]（18px，用于卡片拖拽判定）不同，
+  /// 此值用于手势状态机内部的意图消歧。
+  static const double gestureTouchSlop = 12.0;
 
   /// 双击距离阈值（像素）
   ///
@@ -204,7 +207,7 @@ class GestureCoordinator {
 
     // 移动距离超过阈值，消歧为拖拽或连接
     final distance = delta.distance;
-    if (distance > touchSlop && !_isDragging) {
+    if (distance > gestureTouchSlop && !_isDragging) {
       if (isPinGesture) {
         // 图钉手势 → 拉出红线
         _phase = GesturePhase.connecting;

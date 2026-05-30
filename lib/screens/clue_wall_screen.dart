@@ -292,7 +292,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       for (final card in existingCards) {
         final dx = (card.x - x).abs();
         final dy = (card.y - y).abs();
-        if (dx < cardW * 0.7 && dy < cardH * 0.7) {
+        if (dx < cardW * WallConstants.overlapFactor && dy < cardH * WallConstants.overlapFactor) {
           overlaps = true;
           break;
         }
@@ -303,7 +303,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
         for (final photo in existingPhotos) {
           final dx = (photo.x - x).abs();
           final dy = (photo.y - y).abs();
-          if (dx < photoW * 0.7 && dy < photoH * 0.7) {
+          if (dx < photoW * WallConstants.overlapFactor && dy < photoH * WallConstants.overlapFactor) {
             overlaps = true;
             break;
           }
@@ -723,7 +723,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final canvasPos = _randomPositionInViewport();
 
     final random = Random();
-    final rotation = (random.nextDouble() * 10 - 5).toDouble();
+    final rotation = (random.nextDouble() * WallConstants.maxPhotoRotationDegrees * 2 - WallConstants.maxPhotoRotationDegrees).toDouble();
 
     final photo = PhotoCard(
       imagePath: image.path,

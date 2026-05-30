@@ -105,80 +105,54 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
         children: [
           const AppDragHandle(),
           // 标题栏
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.sepia.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
+          AppDialogTitle(
+            icon: Icons.photo,
+            title: '照片详情',
+            iconColor: AppColors.sepia.withValues(alpha: 0.7),
+            iconBgColor: AppColors.sepia.withValues(alpha: 0.08),
+            trailing: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: widget.photo.photoStyle == PhotoStyle.vintage
+                    ? AppColors.agedPaper.withValues(alpha: 0.6)
+                    : AppColors.paperWhite.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.sepia.withValues(alpha: 0.15),
+                  width: 0.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
                   ),
-                  child: Icon(
-                    Icons.photo,
-                    size: 18,
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.photo.photoStyle == PhotoStyle.vintage
+                        ? Icons.auto_awesome
+                        : Icons.photo_camera,
+                    size: 14,
                     color: AppColors.sepia.withValues(alpha: 0.7),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '照片详情',
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.photo.photoStyle == PhotoStyle.vintage
+                        ? '复古拍立得'
+                        : '经典拍立得',
                     style: TextStyle(
-                      color: AppColors.inkBlack.withValues(alpha: 0.85),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+                      fontSize: 12,
+                      color: AppColors.sepia.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                // 照片风格标签
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: widget.photo.photoStyle == PhotoStyle.vintage
-                        ? AppColors.agedPaper.withValues(alpha: 0.6)
-                        : AppColors.paperWhite.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.sepia.withValues(alpha: 0.15),
-                      width: 0.8,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.photo.photoStyle == PhotoStyle.vintage
-                            ? Icons.auto_awesome
-                            : Icons.photo_camera,
-                        size: 14,
-                        color: AppColors.sepia.withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        widget.photo.photoStyle == PhotoStyle.vintage
-                            ? '复古拍立得'
-                            : '经典拍立得',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.sepia.withValues(alpha: 0.75),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -191,7 +165,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
                 end: Offset.zero,
               ).animate(staggeredInterval(0.1, 0.5)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Container(
                   height: 120,
                   decoration: BoxDecoration(
@@ -234,7 +208,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
           FadeTransition(
             opacity: staggeredInterval(0.3, 0.7),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
               child: AppTextField(
                 controller: _captionController,
                 hint: '添加说明文字...',
@@ -242,7 +216,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DialogConstants.sectionGapLarge),
           // 操作按钮栏：保存 / 删除（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.5, 1.0),
@@ -252,7 +226,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
                 end: Offset.zero,
               ).animate(staggeredInterval(0.5, 1.0)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                 child: Row(
                   children: [
                     Expanded(
@@ -264,7 +238,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
                         isLoading: _isLoading,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: DialogConstants.buttonGap),
                     Expanded(
                       child: AppActionButton(
                         label: '删除',
@@ -278,7 +252,7 @@ class _PhotoDetailDialogState extends ConsumerState<PhotoDetailDialog>
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: DialogConstants.bottomPadding),
         ],
       ),
     );

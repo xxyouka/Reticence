@@ -154,36 +154,11 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
           // 顶部拖拽手柄，视觉提示用户可以下拉关闭
           const AppDragHandle(),
           // 对话框标题
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.redThread.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.person_add,
-                    size: 18,
-                    color: AppColors.redThread.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '新人物',
-                  style: TextStyle(
-                    color: AppColors.inkBlack.withValues(alpha: 0.85),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
+          const AppDialogTitle(
+            icon: Icons.person_add,
+            title: '新人物',
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: DialogConstants.sectionGapMedium),
           // 输入框区域（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.1, 0.55),
@@ -192,7 +167,8 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
               children: [
                 // 姓名输入框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _nameController,
                     focusNode: _nameFocus,
@@ -201,20 +177,22 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
                     textInputAction: TextInputAction.next,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 标签输入框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _tagsController,
                     hint: '标签（逗号分隔）',
                     textInputAction: TextInputAction.next,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 备注输入框
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _descController,
                     hint: '备注（可选）',
@@ -236,7 +214,8 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
                 end: Offset.zero,
               ).animate(staggeredInterval(0.5, 1.0)),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: DialogConstants.horizontalPadding),
                 child: AppActionButton(
                   label: '钉上去',
                   color: AppColors.redThread.withValues(alpha: 0.88),
@@ -247,7 +226,7 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DialogConstants.bottomPadding),
         ],
       ),
     );
