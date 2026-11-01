@@ -89,6 +89,25 @@
 - **WHEN** 用户点击连线打开详情面板
 - **THEN** 可选择四种关系类型，保存后线色与类型持久化
 
+### Requirement: 关系图例与筛选
+系统 SHALL 在顶部常驻关系图例，展示四种关系类型的颜色、名称和数量，并支持按类型筛选连线。筛选只影响显示与交互，不修改连线数据。
+
+#### Scenario: 查看图例
+- **WHEN** 画布上存在连线
+- **THEN** 顶部显示四色图例与各类型数量；无连线时图例隐藏
+
+#### Scenario: 单类聚焦
+- **WHEN** 用户点击"盟友"
+- **THEN** 仅盟友连线保持完整显示，其余连线淡化且不显示标签，也不响应点击和长按拨动
+
+#### Scenario: 多选与恢复
+- **WHEN** 用户继续点选其他类型
+- **THEN** 筛选集合累加；取消到空集合或选满四类时恢复显示全部关系
+
+#### Scenario: 搜索优先
+- **WHEN** 被筛选淡化的连线命中搜索
+- **THEN** 该连线仍保持高亮、显示标签并可点击
+
 #### Scenario: 删除连线
 - **WHEN** 用户在连线编辑面板选择删除
 - **THEN** 连线被移除，两张卡片仍保留
@@ -281,9 +300,9 @@
 
 | 层级 | 工具 | 覆盖范围 | 当前状态 |
 |------|------|---------|---------|
-| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索 | 125 个测试全部通过 |
-| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存 | 已覆盖 |
+| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索、关系筛选 | 135 个测试全部通过 |
+| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存、图例筛选 | 已覆盖 |
 | 黄金测试 | golden_toolkit | 手账主题视觉回归 | 已覆盖 onboarding 页面 |
 | 集成测试 | integration_test | 完整流程 | 待补充 |
 
-> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存。
+> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存、关系图例计数与筛选切换。

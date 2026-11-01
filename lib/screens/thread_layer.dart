@@ -4,8 +4,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/connection_model.dart';
 import '../models/rendered_connection.dart';
 import '../providers/connection_render_provider.dart';
+import '../providers/relationship_filter_provider.dart';
 import '../theme/wall_constants.dart';
 import '../widgets/painters/red_thread_painter.dart';
 
@@ -133,12 +135,22 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
   @override
   Widget build(BuildContext context) {
     final renderedConnections = ref.watch(renderedConnectionsProvider);
+    final activeFilter = ref.watch(relationshipFilterProvider);
 
     // 预计算未摆动的贝塞尔中点（仅当连接数据变化时更新）
     _updateBaseMidpoints(renderedConnections);
 
     // 检测新增连线并触发渐入动画
     _detectNewConnections(renderedConnections);
+
+    // 语义层只统计当前可见/搜索命中的连线，避免朗读被淡化或隐藏的线
+    final visibleConnections = activeFilter.isEmpty
+        ? renderedConnections
+        : renderedConnections
+            .where((conn) =>
+                activeFilter.contains(conn.connectionType) ||
+                widget.highlightedConnectionIds.contains(conn.connectionId))
+            .toList();
 
     return ValueListenableBuilder<double>(
       valueListenable: widget.canvasScaleNotifier,
@@ -157,7 +169,10 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
               // 在 AnimatedBuilder 内部构建透明度，确保每帧更新
               final fadeOpacities = _buildFadeOpacities();
               return Semantics(
-                label: _buildConnectionSemanticsLabel(),
+                label: _buildConnectionSemanticsLabel(
+                  visibleConnections,
+                  activeFilter,
+                ),
                 child: CustomPaint(
                   size: const Size(
                       WallConstants.canvasWidth, WallConstants.canvasHeight),
@@ -166,6 +181,7 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
                     scale: canvasScale,
                     connectionLabels: widget.connectionLabels,
                     highlightedIds: widget.highlightedConnectionIds,
+                    activeFilter: activeFilter,
                     swayTime: _swayController.value * 2 * math.pi,
                     swayStrength: swayStrength,
                     labelCache: _labelCache,
@@ -182,15 +198,24 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
   }
 
   /// 构建连线层的无障碍标签
-  String _buildConnectionSemanticsLabel() {
-    final labels = widget.connectionLabels.values
-        .where((l) => l != null && l.isNotEmpty)
-        .cast<String>()
+  String _buildConnectionSemanticsLabel(
+    List<RenderedConnection> visibleConnections,
+    Set<ConnectionType> activeFilter,
+  ) {
+    final labels = visibleConnections
+        .map((conn) => widget.connectionLabels[conn.connectionId])
+        .whereType<String>()
+        .where((label) => label.isNotEmpty)
         .toList();
-    if (labels.isEmpty) return '${widget.connectionLabels.length} 条连线';
+    final filterSuffix = activeFilter.isEmpty
+        ? ''
+        : '，筛选：${activeFilter.map((type) => type.label).join('、')}';
+    if (labels.isEmpty) {
+      return '${visibleConnections.length} 条连线$filterSuffix';
+    }
     final preview = labels.take(3).join('、');
     final suffix = labels.length > 3 ? '等' : '';
-    return '${labels.length} 条连线：$preview$suffix';
+    return '${visibleConnections.length} 条连线$filterSuffix：$preview$suffix';
   }
 
   /// 检测新增连线，将其加入渐入动画集合

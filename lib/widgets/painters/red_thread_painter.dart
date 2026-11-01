@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/clue_type_style.dart';
+import '../../models/connection_model.dart';
 import '../../models/rendered_connection.dart';
 
 /// 红线绘制器 —— CustomPainter 实现
@@ -38,6 +39,11 @@ class RedThreadPainter extends CustomPainter {
 
   /// 需要高亮显示的连接 ID 集合（搜索匹配结果）
   final Set<int> highlightedIds;
+
+  /// 当前关系类型筛选；空集合表示不筛选
+  ///
+  /// 不在集合中的连线会以极低透明度绘制，不显示标签，也不参与命中。
+  final Set<ConnectionType> activeFilter;
 
   /// 摆动时间参数（弧度），用于驱动红线的轻微水平摆动动画
   final double swayTime;
@@ -60,6 +66,7 @@ class RedThreadPainter extends CustomPainter {
     required this.scale,
     required this.connectionLabels,
     this.highlightedIds = const {},
+    this.activeFilter = const {},
     this.swayTime = 0,
     this.swayStrength = 1,
     this.labelCache,
@@ -162,6 +169,13 @@ class RedThreadPainter extends CustomPainter {
       canvas.save();
       final isHighlighted = highlightedIds.contains(conn.connectionId);
       final swayedConn = _applySway(conn);
+      final isFilteredOut = activeFilter.isNotEmpty &&
+          !activeFilter.contains(conn.connectionType);
+      if (isFilteredOut && !isHighlighted) {
+        _drawDimmedThread(canvas, swayedConn, opacity);
+        canvas.restore();
+        continue;
+      }
       if (isHighlighted) _drawGlow(canvas, swayedConn, opacity);
       _drawShadow(canvas, swayedConn, opacity);
       _drawThread(canvas, swayedConn,
@@ -170,6 +184,29 @@ class RedThreadPainter extends CustomPainter {
       _drawLabel(canvas, swayedConn, originalConn: conn, opacity: opacity);
       canvas.restore();
     }
+  }
+
+  /// 绘制被筛选淡化的连线
+  ///
+  /// 只画一条低透明度主线，不画阴影、绳结和标签，
+  /// 既保留整体关系结构，又让当前筛选类型成为视觉焦点。
+  void _drawDimmedThread(
+    Canvas canvas,
+    RenderedConnection conn,
+    double opacity,
+  ) {
+    final path = _buildPath(conn.points);
+    final width = (1.1 / scale).clamp(0.7, 2.0);
+    final palette = conn.connectionType.palette;
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = palette.base.withValues(alpha: 0.12 * opacity)
+        ..strokeWidth = width
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   /// 每条连线独立的相位偏移，使不同连线摆动不同步
@@ -455,6 +492,7 @@ class RedThreadPainter extends CustomPainter {
     if (scale != oldDelegate.scale ||
         connectionLabels != oldDelegate.connectionLabels ||
         highlightedIds != oldDelegate.highlightedIds ||
+        activeFilter != oldDelegate.activeFilter ||
         swayTime != oldDelegate.swayTime ||
         swayStrength != oldDelegate.swayStrength ||
         fadeOpacities != oldDelegate.fadeOpacities ||

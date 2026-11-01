@@ -1,7 +1,7 @@
 name: reticence
 description: 关系线索墙 — 用红线和图钉编织你的人际网络。A relationship clue wall app with red thread physics simulation.
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.6.0

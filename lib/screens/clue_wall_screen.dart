@@ -41,11 +41,13 @@ import 'package:image_picker/image_picker.dart';
 import '../models/card_model.dart';
 import '../models/connection_model.dart';
 import '../models/photo_card_model.dart';
+import '../models/rendered_connection.dart';
 import '../providers/card_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/photo_provider.dart';
 import '../providers/handlers/clue_wall_controller.dart';
 import '../providers/connection_render_provider.dart';
+import '../providers/relationship_filter_provider.dart';
 import '../providers/undo_redo_provider.dart';
 import '../providers/commands/card_commands.dart';
 import '../providers/commands/connection_commands.dart';
@@ -68,6 +70,7 @@ import 'canvas_gesture_handler.dart';
 import 'connecting_hint.dart';
 import 'connecting_line_painter.dart';
 import 'empty_state_hint.dart';
+import 'relationship_legend_bar.dart';
 import 'search_result_badge.dart';
 import 'thread_layer.dart';
 import 'tool_buttons.dart';
@@ -594,6 +597,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     if (command.createdConnection != null) {
       AppHaptics.connect();
       final created = command.createdConnection!;
+      // 新建后清除筛选，确保新线立即可见
+      ref.read(relationshipFilterProvider.notifier).state =
+          const <ConnectionType>{};
       _endConnecting();
       // 等当前指针事件处理完毕再弹面板，避免与手势收尾竞争
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -602,6 +608,23 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       return;
     }
     _endConnecting();
+  }
+
+  /// 当前筛选下可被点击/拨动的连线
+  ///
+  /// 被筛选淡化的连线不可命中；搜索命中的连线即使被筛选也保持可交互，
+  /// 避免用户搜到却点不到。
+  List<RenderedConnection> _hittableRenderedConnections() {
+    final rendered = ref.read(renderedConnectionsProvider);
+    final filter = ref.read(relationshipFilterProvider);
+    if (filter.isEmpty) return rendered;
+
+    final searchIds = _controller.searchCtrl.results.connectionIds;
+    return rendered
+        .where((conn) =>
+            filter.contains(conn.connectionType) ||
+            searchIds.contains(conn.connectionId))
+        .toList();
   }
 
   /// 画布点击处理
@@ -631,7 +654,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
     // 使用 RedThreadPainter 的命中测试检测是否点击了红线
     // 命中阈值根据当前缩放比例调整，缩放越小阈值越大
-    final renderedConnections = ref.read(renderedConnectionsProvider);
+    final renderedConnections = _hittableRenderedConnections();
     final hitId = RedThreadPainter.hitTestConnection(
       canvasPos,
       renderedConnections,
@@ -657,7 +680,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       globalPosition,
     );
 
-    final renderedConnections = ref.read(renderedConnectionsProvider);
+    final renderedConnections = _hittableRenderedConnections();
     final hitId = RedThreadPainter.hitTestConnection(
       canvasPos,
       renderedConnections,
@@ -1121,6 +1144,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                     showSearch: _controller.searchCtrl.showSearch,
                     searchController: _controller.searchCtrl.textController,
                     cardCount: cards.length,
+                    legend: const RelationshipLegendBar(),
                     onSearchChanged: (query) =>
                         _onSearchChanged(query, cards, photos, connections),
                     onSearchToggle: () {

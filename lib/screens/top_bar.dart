@@ -16,6 +16,9 @@ class TopBar extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onSearchToggle;
 
+  /// 搜索栏下方的附加内容（关系图例筛选条）
+  final Widget? legend;
+
   const TopBar({
     super.key,
     required this.showSearch,
@@ -23,6 +26,7 @@ class TopBar extends StatefulWidget {
     required this.cardCount,
     required this.onSearchChanged,
     required this.onSearchToggle,
+    this.legend,
   });
 
   @override
@@ -126,6 +130,11 @@ class _TopBarState extends State<TopBar> {
                     ),
                 ],
               ),
+              // 关系图例筛选条：搜索展开时让位给输入框
+              if (!widget.showSearch && widget.legend != null) ...[
+                const SizedBox(height: 8),
+                widget.legend!,
+              ],
               AnimatedSize(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOutCubic,
