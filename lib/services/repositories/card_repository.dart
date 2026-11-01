@@ -59,7 +59,7 @@ class CardRepository {
   /// 否则将业务模型转换为 Companion 对象后执行更新
   Future<bool> updateCard(ClueCard card) async {
     if (card.id == null) return false;
-    return _dao.updateCard(_toCompanion(card));
+    return _dao.updateCard(_toCompanion(card.copyWith(updatedAt: DateTime.now())));
   }
 
   /// 根据 ID 删除卡片
@@ -91,6 +91,7 @@ class CardRepository {
       name: data.name,
       tags: tags,
       description: data.description,
+      cardType: CardType.fromName(data.cardType),
       x: data.x,
       y: data.y,
       rotation: data.rotation,
@@ -112,9 +113,9 @@ class CardRepository {
     return CardsTableCompanion(
       id: card.id != null ? Value(card.id!) : const Value.absent(),
       name: Value(card.name),
-      // 将标签列表序列化为 JSON 字符串存入数据库
       tags: Value(jsonEncode(card.tags)),
       description: Value(card.description),
+      cardType: Value(card.cardType.name),
       x: Value(card.x),
       y: Value(card.y),
       rotation: Value(card.rotation),

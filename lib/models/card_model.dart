@@ -8,6 +8,25 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+/// 线索类型
+///
+/// 与数据库中的 `card_type` 字段对应，用于区分人物、地点和事件。
+/// 存储时使用枚举名（person/location/event），读取时未知值回退为人物。
+enum CardType {
+  person('人物'),
+  location('地点'),
+  event('事件');
+
+  const CardType(this.label);
+
+  /// 中文显示名称
+  final String label;
+
+  /// 从数据库字符串解析类型，未知值回退为 [CardType.person]
+  static CardType fromName(String? name) =>
+      values.asNameMap()[name] ?? CardType.person;
+}
+
 /// 线索卡片
 ///
 /// 继承 [Equatable] 以实现基于值的相等性比较，当两张卡片的
@@ -28,6 +47,12 @@ class ClueCard extends Equatable {
   /// 卡片上显示的标题文字，例如"嫌疑人A"、"案发现场"等，
   /// 是卡片的唯一必填字段。
   final String name;
+
+  /// 卡片类型
+  ///
+  /// 用于区分人物、地点、事件等不同类型的线索卡片。
+  /// 默认为 [CardType.person]（人物类型）。
+  final CardType cardType;
 
   /// 标签列表
   ///
@@ -87,6 +112,7 @@ class ClueCard extends Equatable {
     required this.name,
     this.tags = const [],
     this.description,
+    this.cardType = CardType.person,
     this.x = 0,
     this.y = 0,
     this.rotation = 0,
@@ -107,6 +133,7 @@ class ClueCard extends Equatable {
         name,
         tags,
         description,
+        cardType,
         x,
         y,
         rotation,
@@ -142,7 +169,8 @@ class ClueCard extends Equatable {
     String? name,
     List<String>? tags,
     String? description,
-    bool clearDescription = false, // 为 true 时将 description 强制设为 null
+    bool clearDescription = false,
+    CardType? cardType,
     double? x,
     double? y,
     double? rotation,
@@ -156,6 +184,7 @@ class ClueCard extends Equatable {
       name: name ?? this.name,
       tags: tags ?? this.tags,
       description: clearDescription ? null : (description ?? this.description),
+      cardType: cardType ?? this.cardType,
       x: x ?? this.x,
       y: y ?? this.y,
       rotation: rotation ?? this.rotation,

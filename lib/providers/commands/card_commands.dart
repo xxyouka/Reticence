@@ -26,6 +26,7 @@ class AddCardCommand extends UndoableCommand {
 
   @override
   Future<void> execute() async {
+    if (_createdCard != null) return;
     _createdCard = await cardNotifier.addCard(card);
   }
 
@@ -137,6 +138,7 @@ class AddPhotoCommand extends UndoableCommand {
 
   @override
   Future<void> execute() async {
+    if (_createdPhoto != null) return;
     _createdPhoto = await photoNotifier.addPhoto(photo);
   }
 

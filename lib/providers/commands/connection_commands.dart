@@ -25,6 +25,7 @@ class AddConnectionCommand extends UndoableCommand {
 
   @override
   Future<void> execute() async {
+    if (_createdConnection != null) return;
     _createdConnection = await connectionNotifier.addConnection(connection);
   }
 

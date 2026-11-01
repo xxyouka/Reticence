@@ -151,7 +151,7 @@ class AppDialogTitle extends StatelessWidget {
 ///
 /// 为所有底部抽屉式对话框提供统一的外层包装，包含：
 /// - 底部安全区域适配（键盘弹出时自动调整间距）
-/// - 人物纸张色（personPaper）背景
+/// - 旧纸色（agedPaper / paperWhiteDark）背景
 /// - 顶部圆角
 /// - 向上投射的阴影
 ///
@@ -185,7 +185,11 @@ class AppDialogShell extends StatelessWidget {
             ),
           ],
         ),
-        child: child,
+        // 小屏 + 键盘弹出时内容可滚动，避免类型选择器把按钮挤出屏幕
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: child,
+        ),
       ),
     );
   }

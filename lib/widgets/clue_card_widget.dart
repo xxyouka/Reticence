@@ -26,6 +26,7 @@ import '../models/card_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_typography.dart';
+import '../theme/clue_type_style.dart';
 import '../theme/wall_constants.dart';
 import '../utils/gesture_coordinator.dart';
 import '../utils/app_haptics.dart';
@@ -169,8 +170,8 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
   /// 入场动画控制器（卡片创建时缩放+淡入）
   late AnimationController _entranceController;
 
-  /// 按下缩放动画值（1.0 → 0.97，按下时微微缩小）
-  late Animation<double> _pressedScaleAnimation;
+  /// 按下缩放动画（复用 CurvedAnimation，避免重复创建泄漏）
+  late CurvedAnimation _pressedCurve;
 
   /// 连线目标脉冲动画值（0.0 → 1.0）
   late Animation<double> _targetPulseAnimation;
@@ -204,12 +205,9 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
       duration: const Duration(milliseconds: 120),
       vsync: this,
     );
-    // 按下时缩放到 0.97，模拟物理按压的弹性反馈
-    _pressedScaleAnimation = Tween<double>(begin: 1.0, end: WallConstants.pressScale).animate(
-      CurvedAnimation(
-        parent: _pressedAnimationController,
-        curve: Curves.easeInOut,
-      ),
+    _pressedCurve = CurvedAnimation(
+      parent: _pressedAnimationController,
+      curve: Curves.easeInOut,
     );
 
     // 浮动相位：每张卡片有随机相位偏移，避免同步浮动
@@ -274,6 +272,7 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
     _targetPulseController.dispose();
     _glowController.dispose();
     _entranceController.dispose();
+    _pressedCurve.dispose();
     _pressedAnimationController.dispose();
     super.dispose();
   }
@@ -304,12 +303,13 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
     }
   }
 
-  /// 构建无障碍标签：线索：姓名，标签：标签1、标签2
+  /// 构建无障碍标签：线索：姓名，类型：地点，标签：标签1、标签2
   String _buildSemanticsLabel() {
     final card = widget.card;
     final tags = card.tags;
-    if (tags.isEmpty) return '线索：${card.name}';
-    return '线索：${card.name}，标签：${tags.join('、')}';
+    final typeLabel = card.cardType.label;
+    if (tags.isEmpty) return '线索：${card.name}，类型：$typeLabel';
+    return '线索：${card.name}，类型：$typeLabel，标签：${tags.join('、')}';
   }
 
   /// 处理指针按下事件
@@ -492,13 +492,6 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
     setState(() {
       _isDragging = true;
     });
-    // 拖拽时缩放到 1.04，模拟"抬起"感
-    _pressedScaleAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
-      CurvedAnimation(
-        parent: _pressedAnimationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
     _pressedAnimationController.forward();
     widget.onDragStart?.call(position);
     AppHaptics.dragStart();
@@ -543,13 +536,6 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
     _isConnecting = false;
     _hasMoved = false;
     _latestGlobalPosition = null;
-    // 恢复按下缩放动画为目标值（按下 0.97）
-    _pressedScaleAnimation = Tween<double>(begin: 1.0, end: WallConstants.pressScale).animate(
-      CurvedAnimation(
-        parent: _pressedAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
     if (_activePointers.isEmpty) {
       _gestureCancelledForCanvasPinch = false;
     }
@@ -655,10 +641,10 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
           CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic),
         ),
         child: AnimatedBuilder(
-      animation: _pressedScaleAnimation,
+      animation: _pressedCurve,
       builder: (context, child) {
         return Transform.scale(
-          scale: _pressedScaleAnimation.value,
+          scale: Tween<double>(begin: 1.0, end: WallConstants.pressScale).transform(_pressedCurve.value),
           child: child,
         );
       },
@@ -762,7 +748,7 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
                     child: ValueListenableBuilder<bool>(
                       valueListenable: _pinPressed,
                       builder: (context, pressed, _) => Pushpin(
-                        color: AppColors.pinRed,
+                        color: widget.card.cardType.pinColor,
                         isPressed: pressed,
                       ),
                     ),
@@ -853,9 +839,47 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
   /// 计算文字区域的有效最大宽度
   double _computeContentMaxWidth() => widget.card.width;
 
+  /// 类型徽章 —— 类型色描边 + 图标 + 中文标签
+  ///
+  /// 固定作为第一个标签展示，即使卡片没有任何标签也能一眼识别线索类型。
+  Widget _buildTypeBadge() {
+    final type = widget.card.cardType;
+    final color = type.color;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: WallConstants.cardTagPaddingH,
+          vertical: WallConstants.cardTagPaddingV),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.24), width: 0.6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(type.icon,
+              size: WallConstants.cardTypeIconSize,
+              color: color.withValues(alpha: 0.8)),
+          const SizedBox(width: 3),
+          Text(
+            type.label,
+            style: TextStyle(
+              fontFamily: AppTypography.harmonyOS,
+              fontSize: WallConstants.cardTypeFontSize,
+              color: color.withValues(alpha: 0.85),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 布局从上到下：
   /// 1. 人物/事件名称（Caveat 手写体，最多2行）
-  /// 2. 标签列表（彩色小标签，循环使用5种颜色）
+  /// 2. 类型徽章 + 标签列表（类型徽章固定在最前，彩色小标签循环使用5种颜色）
   /// 3. 描述文字（SourceSerif4 衬线体，最多3行）
   Widget _buildCardContent(BuildContext context) {
     final tagColors = [
@@ -895,17 +919,19 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          // 标签列表
-          if (widget.card.tags.isNotEmpty) ...[
-            const SizedBox(height: 7),
-            Wrap(
-              spacing: 4,
-              runSpacing: 3,
-              children: widget.card.tags.asMap().entries.map((entry) {
+          // 类型徽章 + 标签列表
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 4,
+            runSpacing: 3,
+            children: [
+              _buildTypeBadge(),
+              ...widget.card.tags.asMap().entries.map((entry) {
                 final color = tagColors[entry.key % tagColors.length];
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: WallConstants.cardTagPaddingH, vertical: WallConstants.cardTagPaddingV),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: WallConstants.cardTagPaddingH,
+                      vertical: WallConstants.cardTagPaddingV),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(3),
@@ -921,9 +947,9 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
                     ),
                   ),
                 );
-              }).toList(),
-            ),
-          ],
+              }),
+            ],
+          ),
           // 描述文字 —— SourceSerif4 衬线体
           if (widget.card.description != null &&
               widget.card.description!.isNotEmpty) ...[

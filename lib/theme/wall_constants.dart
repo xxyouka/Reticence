@@ -143,6 +143,8 @@ class WallConstants {
   static const double cardContentPaddingV = 13.0;
   static const double cardNameFontSize = 19.0;
   static const double cardTagFontSize = 10.0;
+  static const double cardTypeFontSize = 9.5; // 类型徽章字号
+  static const double cardTypeIconSize = 10.0; // 类型徽章图标尺寸
   static const double cardDescFontSize = 11.0;
   static const double cardTagPaddingH = 7.0;
   static const double cardTagPaddingV = 2.5;

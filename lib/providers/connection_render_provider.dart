@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/connection_model.dart';
 import '../models/rendered_connection.dart';
 import '../theme/wall_constants.dart';
 import 'card_provider.dart';
@@ -36,7 +37,12 @@ final renderedConnectionsProvider = Provider<List<RenderedConnection>>((ref) {
     final to = _resolveEndpointFromMaps(
         conn.toCardId, conn.toPhotoId, cardPositions, photoPositions);
     if (from == null || to == null || conn.id == null) continue;
-    result.add(_buildRenderedConnection(conn.id!, from, to));
+    result.add(_buildRenderedConnection(
+      conn.id!,
+      from,
+      to,
+      conn.connectionType,
+    ));
   }
   return result;
 });
@@ -44,11 +50,24 @@ final renderedConnectionsProvider = Provider<List<RenderedConnection>>((ref) {
 /// 卡片位置快照 Provider（id → Offset）
 ///
 /// 从 cardListProvider 提取每张卡片的图钉中心位置。
-/// 使用 select 做浅比较：只有当卡片实际位置变化时才触发重算。
+/// 使用 select 做浅比较：只有当卡片实际位置变化时才触发重算，
+/// 避免拖拽时因 AsyncValue 引用变化导致每帧重算。
 final _cardPositionProvider = Provider<Map<int, Offset>>((ref) {
-  final cards = ref.watch(cardListProvider).value ?? [];
+  // select 返回位置哈希（int），利用 int 的值相等性避免无意义重算
+  ref.watch(cardListProvider.select((async) {
+    final list = async.value;
+    if (list == null || list.isEmpty) return 0;
+    var h = list.length;
+    for (final c in list) {
+      if (c.id == null) continue;
+      h = h.hashCode ^ c.id!.hashCode ^ c.x.hashCode ^ c.y.hashCode;
+    }
+    return h;
+  }));
+  // select 通过后，读取完整列表构建位置 Map
+  final list = ref.watch(cardListProvider).value ?? [];
   return {
-    for (final c in cards)
+    for (final c in list)
       if (c.id != null)
         c.id!: Offset(c.x + c.width / 2, c.y + WallConstants.pushpinCenterOffset),
   };
@@ -56,9 +75,19 @@ final _cardPositionProvider = Provider<Map<int, Offset>>((ref) {
 
 /// 照片位置快照 Provider（id → Offset）
 final _photoPositionProvider = Provider<Map<int, Offset>>((ref) {
-  final photos = ref.watch(photoListProvider).value ?? [];
+  ref.watch(photoListProvider.select((async) {
+    final list = async.value;
+    if (list == null || list.isEmpty) return 0;
+    var h = list.length;
+    for (final p in list) {
+      if (p.id == null) continue;
+      h = h.hashCode ^ p.id!.hashCode ^ p.x.hashCode ^ p.y.hashCode;
+    }
+    return h;
+  }));
+  final list = ref.watch(photoListProvider).value ?? [];
   return {
-    for (final p in photos)
+    for (final p in list)
       if (p.id != null)
         p.id!: Offset(p.x + p.width / 2, p.y + WallConstants.pushpinCenterOffset),
   };
@@ -85,7 +114,11 @@ Offset? _resolveEndpointFromMaps(
 /// 1. 计算两端距离，据此得出下垂量（sag）
 /// 2. 控制点位于线段 1/4 和 3/4 处，Y 坐标叠加下垂偏移
 RenderedConnection _buildRenderedConnection(
-    int connectionId, Offset from, Offset to) {
+  int connectionId,
+  Offset from,
+  Offset to,
+  ConnectionType connectionType,
+) {
   final dx = to.dx - from.dx;
   final dy = to.dy - from.dy;
   final distance = sqrt(dx * dx + dy * dy);
@@ -109,5 +142,6 @@ RenderedConnection _buildRenderedConnection(
     connectionId: connectionId,
     points: [from, cp1, cp2, to],
     tension: distance / WallConstants.connectingLineSagFalloff,
+    connectionType: connectionType,
   );
 }

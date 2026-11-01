@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 
 import '../models/card_model.dart';
@@ -66,7 +67,7 @@ class AppSearchController extends ChangeNotifier {
       // 立即通知 UI 更新关键词（让搜索图标等状态同步）
       notifyListeners();
       _debounceTimer = Timer(_debounceDuration, () {
-        _results = _searchAll(cards, photos, connections, query);
+        _results = searchAll(cards, photos, connections, query);
         notifyListeners();
         onSearched?.call();
       });
@@ -94,7 +95,10 @@ class AppSearchController extends ChangeNotifier {
   }
 
   /// 根据搜索关键词过滤卡片、照片和连线
-  static SearchResult _searchAll(
+  ///
+  /// 除名称/描述/标签外，类型的中文名（人物/地点/事件、中立/盟友/敌对/自定义）
+  /// 也参与匹配，方便用户按类型快速定位线索。
+  static SearchResult searchAll(
     List<ClueCard> cards,
     List<PhotoCard> photos,
     List<Connection> connections,
@@ -113,6 +117,8 @@ class AppSearchController extends ChangeNotifier {
         cardIds.add(card.id!);
       } else if (card.tags.any((t) => t.toLowerCase().contains(lowerQuery))) {
         cardIds.add(card.id!);
+      } else if (card.cardType.label.contains(lowerQuery)) {
+        cardIds.add(card.id!);
       }
     }
 
@@ -126,6 +132,8 @@ class AppSearchController extends ChangeNotifier {
     for (final conn in connections) {
       if (conn.id == null) continue;
       if (conn.label?.toLowerCase().contains(lowerQuery) ?? false) {
+        connectionIds.add(conn.id!);
+      } else if (conn.connectionType.label.contains(lowerQuery)) {
         connectionIds.add(conn.id!);
       }
     }
@@ -147,24 +155,28 @@ class AppSearchController extends ChangeNotifier {
 
     // 优先定位到匹配的卡片
     if (_results.cardIds.isNotEmpty) {
-      final card = cards.firstWhere((c) => c.id == _results.cardIds.first);
-      navigationHandler.zoomToCard(
-        transformController, zoomController,
-        card.x, card.y, screenSize,
-        cardWidth: card.width, cardHeight: card.height,
-      );
-      return;
+      final card = cards.firstWhereOrNull((c) => c.id == _results.cardIds.first);
+      if (card != null) {
+        navigationHandler.zoomToCard(
+          transformController, zoomController,
+          card.x, card.y, screenSize,
+          cardWidth: card.width, cardHeight: card.height,
+        );
+        return;
+      }
     }
 
     // 其次定位到匹配的照片
     if (_results.photoIds.isNotEmpty) {
-      final photo = photos.firstWhere((p) => p.id == _results.photoIds.first);
-      navigationHandler.zoomToCard(
-        transformController, zoomController,
-        photo.x, photo.y, screenSize,
-        cardWidth: photo.width, cardHeight: photo.height,
-      );
-      return;
+      final photo = photos.firstWhereOrNull((p) => p.id == _results.photoIds.first);
+      if (photo != null) {
+        navigationHandler.zoomToCard(
+          transformController, zoomController,
+          photo.x, photo.y, screenSize,
+          cardWidth: photo.width, cardHeight: photo.height,
+        );
+        return;
+      }
     }
 
     // 匹配连线时，定位到连线中点

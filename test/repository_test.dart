@@ -90,6 +90,22 @@ void main() {
       expect(fetched.description, 'A detailed description');
     });
 
+    test('cardType survives round-trip', () async {
+      final card = await cardRepo.insertCard(
+        ClueCard(name: '旧码头', cardType: CardType.location),
+      );
+      final fetched = await cardRepo.getCardById(card.id!);
+      expect(fetched.cardType, CardType.location);
+    });
+
+    test('cardType can be updated', () async {
+      final card = await cardRepo.insertCard(ClueCard(name: '停电'));
+      final updated = card.copyWith(cardType: CardType.event);
+      await cardRepo.updateCard(updated);
+      final fetched = await cardRepo.getCardById(card.id!);
+      expect(fetched.cardType, CardType.event);
+    });
+
     test('nullable description can be set to null', () async {
       final card = await cardRepo.insertCard(
         ClueCard(name: 'Desc', description: 'will clear'),

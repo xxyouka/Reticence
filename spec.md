@@ -36,6 +36,21 @@
 - **WHEN** 用户在卡片详情面板选择删除
 - **THEN** 卡片及其所有连线被移除
 
+### Requirement: 线索类型
+系统 SHALL 为每张线索卡片提供类型：人物（person）、地点（location）、事件（event），默认人物。类型持久化到本地数据库，并影响图钉颜色与卡片徽章。
+
+#### Scenario: 创建时选择类型
+- **WHEN** 用户打开添加线索面板
+- **THEN** 面板默认选中"人物"，可切换为"地点"或"事件"，标题同步变化；提交后卡片保存对应类型
+
+#### Scenario: 编辑类型
+- **WHEN** 用户打开卡片详情面板
+- **THEN** 可修改线索类型，保存后卡片图钉颜色、类型徽章和数据库记录同步更新
+
+#### Scenario: 类型可视化
+- **WHEN** 卡片显示在线索墙上
+- **THEN** 卡片始终显示类型徽章；图钉颜色按类型区分（人物红、地点蓝、事件黄铜）
+
 ### Requirement: 照片卡片
 系统 SHALL 提供照片卡片（PhotoCard），每张照片包含图片路径（必填）、说明（可选）、位置坐标，支持 polaroid 和 vintage 两种风格。照片可独立存在于画布上，也可通过连线与卡片或其他照片关联。
 
@@ -60,11 +75,19 @@
 
 #### Scenario: 创建连线
 - **WHEN** 用户从一张卡片拖向另一张卡片
-- **THEN** 两张卡片之间创建一条红线，弹出输入框填写关系描述
+- **THEN** 两张卡片之间创建一条红线，并自动打开关系详情面板，可选择关系类型并填写关系描述
 
 #### Scenario: 编辑连线
 - **WHEN** 用户点击连线
-- **THEN** 弹出连线编辑面板，可修改关系描述
+- **THEN** 弹出连线编辑面板，可修改关系描述和关系类型
+
+#### Scenario: 关系类型可视化
+- **WHEN** 连线设置为中立/盟友/敌对/自定义
+- **THEN** 线色分别使用红/绿/近黑/灰蓝，连线标签左侧显示对应颜色圆点
+
+#### Scenario: 编辑关系类型
+- **WHEN** 用户点击连线打开详情面板
+- **THEN** 可选择四种关系类型，保存后线色与类型持久化
 
 #### Scenario: 删除连线
 - **WHEN** 用户在连线编辑面板选择删除
@@ -98,6 +121,17 @@
 #### Scenario: 松手回弹
 - **WHEN** 用户松开被拉伸连线的卡片
 - **THEN** 连线弹簧力将卡片拉回平衡位置，回弹不超过 3 次，0.5s 内稳定
+
+### Requirement: 类型搜索
+系统 SHALL 在全局搜索中支持按类型中文名匹配线索与连线。
+
+#### Scenario: 搜索线索类型
+- **WHEN** 用户输入"地点"或"事件"
+- **THEN** 对应类型的卡片被高亮，并可定位到首个结果
+
+#### Scenario: 搜索关系类型
+- **WHEN** 用户输入"盟友"或"敌对"
+- **THEN** 对应关系类型的连线被高亮，并可定位到连线中点
 
 ### Requirement: 画布交互
 系统 SHALL 支持画布的缩放（双指捏合）和平移（双指拖动），以及卡片的大头钉固定视觉效果。
@@ -169,7 +203,7 @@
 |------|------|------|
 | id | int (PK) | 自增主键 |
 | name | String | 姓名，必填 |
-| card_type | String | 卡片类型，默认 'person' |
+| card_type | String | 卡片类型枚举：person / location / event，默认 'person' |
 | tags | String (JSON array) | 标签列表，如 ["同事","大学同学"] |
 | description | String? | 可选描述 |
 | x | double | 画布 X 坐标 |
@@ -247,9 +281,9 @@
 
 | 层级 | 工具 | 覆盖范围 | 当前状态 |
 |------|------|---------|---------|
-| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo | 102 个测试全部通过 |
-| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动 | 已覆盖 |
+| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索 | 125 个测试全部通过 |
+| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存 | 已覆盖 |
 | 黄金测试 | golden_toolkit | 手账主题视觉回归 | 已覆盖 onboarding 页面 |
 | 集成测试 | integration_test | 完整流程 | 待补充 |
 
-> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection）。
+> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存。

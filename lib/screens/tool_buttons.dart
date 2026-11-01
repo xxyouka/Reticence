@@ -143,8 +143,8 @@ class ToolButtonsState extends State<ToolButtons>
                     child: Opacity(
                       opacity: _relationOpacity.value,
                       child: _SubActionButton(
-                        icon: Icons.person_add,
-                        label: '新关系',
+                        icon: Icons.note_add_outlined,
+                        label: '新线索',
                         color: AppColors.redThread,
                         onTap: () {
                           collapse();

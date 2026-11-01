@@ -1,6 +1,7 @@
 /// 关系连线详情对话框
 ///
-/// 用户点击线索墙上的连线后弹出，可以查看关系两端、编辑关系描述、保存或删除连线。
+/// 用户点击线索墙上的连线后弹出，可以查看关系两端、编辑关系类型和描述、
+/// 保存或删除连线。
 library;
 
 import 'package:collection/collection.dart';
@@ -16,12 +17,14 @@ import '../../providers/connection_provider.dart';
 import '../../providers/photo_provider.dart';
 import '../../providers/undo_redo_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/clue_type_style.dart';
 import '../../utils/app_haptics.dart';
 import 'app_dialog_components.dart';
+import 'type_selectors.dart';
 
 /// 关系连线详情对话框
 ///
-/// 以底部抽屉形式展示，包含：标题、端点展示、关系描述输入、保存/删除。
+/// 以底部抽屉形式展示，包含：标题、端点展示、关系类型选择、关系描述输入、保存/删除。
 class ConnectionDetailDialog extends ConsumerStatefulWidget {
   /// 要查看/编辑的关系连线数据
   final Connection connection;
@@ -46,9 +49,13 @@ class _ConnectionDetailDialogState
   late final TextEditingController _labelController;
   bool _isLoading = false;
 
+  /// 当前选择的关系类型
+  late ConnectionType _selectedType;
+
   @override
   void initState() {
     super.initState();
+    _selectedType = widget.connection.connectionType;
     _labelController =
         TextEditingController(text: widget.connection.label ?? '');
   }
@@ -75,12 +82,15 @@ class _ConnectionDetailDialogState
 
   /// 构建端点芯片组件
   ///
-  /// 卡片端点：人物图标 + 卡片名称
+  /// 卡片端点：类型图标 + 卡片名称
   /// 照片端点：照片图标 + 照片标题（或"照片"）
   Widget _endpointChip({ClueCard? card, PhotoCard? photo}) {
     final isCard = card != null;
     final name = isCard ? card.name : (photo?.caption ?? '照片');
-    final icon = isCard ? Icons.person : Icons.photo;
+    final icon = isCard ? card.cardType.icon : Icons.photo;
+    final iconColor = isCard
+        ? card.cardType.color.withValues(alpha: 0.75)
+        : AppColors.sepia.withValues(alpha: 0.65);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -103,7 +113,7 @@ class _ConnectionDetailDialogState
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon,
-              size: 14, color: AppColors.sepia.withValues(alpha: 0.65)),
+              size: 14, color: iconColor),
           const SizedBox(width: 6),
           Text(
             name,
@@ -129,6 +139,7 @@ class _ConnectionDetailDialogState
     final updated = widget.connection.copyWith(
       label: labelText.isEmpty ? null : labelText,
       clearLabel: labelText.isEmpty,
+      connectionType: _selectedType,
     );
     await ref.read(undoRedoProvider.notifier).executeCommand(
           UpdateConnectionCommand(
@@ -181,12 +192,14 @@ class _ConnectionDetailDialogState
           // 拖拽手柄
           const AppDragHandle(),
           // 标题
-          const AppDialogTitle(
-            icon: Icons.timeline,
+          AppDialogTitle(
+            icon: _selectedType.icon,
             title: '关系详情',
+            iconColor: _selectedType.color.withValues(alpha: 0.75),
+            iconBgColor: _selectedType.color.withValues(alpha: 0.1),
           ),
           const SizedBox(height: 16),
-          // 人物关系展示区：起始人物 → 目标人物（带入场动画）
+          // 关系端点展示区：起始线索 → 目标线索（带入场动画）
           FadeTransition(
             opacity: staggeredInterval(0.1, 0.5),
             child: SlideTransition(
@@ -220,12 +233,12 @@ class _ConnectionDetailDialogState
                         _endpointChip(card: fromCard)
                       else if (fromPhoto != null)
                         _endpointChip(photo: fromPhoto),
-                      // 红色箭头
+                      // 端点箭头：随关系类型着色
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Icon(Icons.arrow_forward,
                             size: 14,
-                            color: AppColors.redThread.withValues(alpha: 0.6)),
+                            color: _selectedType.color.withValues(alpha: 0.65)),
                       ),
                       // 目标端点
                       if (toCard != null)
@@ -235,6 +248,21 @@ class _ConnectionDetailDialogState
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // 关系类型选择器（带入场动画）
+          FadeTransition(
+            opacity: staggeredInterval(0.2, 0.6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: DialogConstants.horizontalPadding),
+              child: RelationshipTypeSelector(
+                selected: _selectedType,
+                onChanged: (type) {
+                  setState(() => _selectedType = type);
+                },
               ),
             ),
           ),

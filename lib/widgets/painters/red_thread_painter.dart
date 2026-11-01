@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
+import '../../theme/clue_type_style.dart';
 import '../../models/rendered_connection.dart';
 
 /// 红线绘制器 —— CustomPainter 实现
@@ -202,6 +203,7 @@ class RedThreadPainter extends CustomPainter {
       connectionId: conn.connectionId,
       points: swayedPoints,
       tension: conn.tension,
+      connectionType: conn.connectionType,
     );
   }
 
@@ -269,11 +271,11 @@ class RedThreadPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// 绘制主线层 —— 红色棉线 + 高光偏移线
+  /// 绘制主线层 —— 棉线 + 高光偏移线
   ///
   /// 分两步绘制：
-  /// 1. 主线：使用 [AppColors.redThread] 绘制红色描边
-  /// 2. 高光线：将路径向左上偏移 (-0.3, -0.4)，用更细的半透明浅红色描边，
+  /// 1. 主线：按关系类型使用对应棉线色（中立红/盟友绿/敌对黑/自定义蓝）
+  /// 2. 高光线：将路径向左上偏移 (-0.3, -0.4)，用更细的半透明浅色描边，
   ///    模拟棉线受光面的高光反射，营造立体质感。
   ///
   /// 设计考量：真实棉线并非均匀着色，受光面会偏亮。通过偏移绘制细高光线，
@@ -282,9 +284,10 @@ class RedThreadPainter extends CustomPainter {
       {bool isHighlighted = false, double opacity = 1.0}) {
     final path = _buildPath(conn.points);
     final width = (2.0 / scale).clamp(1.0, 3.5);
+    final palette = conn.connectionType.palette;
 
-    // 绘制红色主线，高亮时颜色更亮
-    final baseColor = isHighlighted ? AppColors.redThreadLight : AppColors.redThread;
+    // 绘制主线，高亮时使用更亮的同色系
+    final baseColor = isHighlighted ? palette.light : palette.base;
     canvas.drawPath(
       path,
       Paint()
@@ -300,7 +303,7 @@ class RedThreadPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = AppColors.redThreadLight.withValues(alpha: 0.18 * opacity)
+        ..color = palette.light.withValues(alpha: 0.18 * opacity)
         ..strokeWidth = (width * 0.35).clamp(0.3, 1.0)
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
@@ -317,6 +320,7 @@ class RedThreadPainter extends CustomPainter {
   void _drawKnots(Canvas canvas, RenderedConnection conn, double opacity) {
     final points = conn.points;
     final knotRadius = (2.5 / scale).clamp(1.5, 4.0);
+    final palette = conn.connectionType.palette;
 
     for (final point in [points.first, points.last]) {
       // 绳结投影
@@ -335,9 +339,9 @@ class RedThreadPainter extends CustomPainter {
             center: const Alignment(-0.3, -0.3),
             radius: 1.0,
             colors: [
-              AppColors.redThreadLight.withValues(alpha: AppColors.redThreadLight.a * opacity),
-              AppColors.redThread.withValues(alpha: AppColors.redThread.a * opacity),
-              AppColors.redThreadDark.withValues(alpha: AppColors.redThreadDark.a * opacity),
+              palette.light.withValues(alpha: palette.light.a * opacity),
+              palette.base.withValues(alpha: palette.base.a * opacity),
+              palette.dark.withValues(alpha: palette.dark.a * opacity),
             ],
             stops: const [0.0, 0.5, 1.0],
           ).createShader(Rect.fromCircle(center: point, radius: knotRadius)),
@@ -393,9 +397,13 @@ class RedThreadPainter extends CustomPainter {
       )..layout();
     }
 
-    // 计算标签背景尺寸：文字尺寸 + 两侧内边距 + 额外留白
+    // 标签背景尺寸：关系类型圆点 + 间距 + 文字
     final padding = 3.5 / scale;
-    final tagW = textPainter.width + padding * 2 + 5.0 / scale;
+    final palette = conn.connectionType.palette;
+    final dotRadius = (2.0 / scale).clamp(1.0, 3.0);
+    final dotGap = 3.0 / scale;
+    final dotDiameter = dotRadius * 2;
+    final tagW = textPainter.width + padding * 2 + 5.0 / scale + dotDiameter + dotGap;
     final tagH = textPainter.height + padding * 2;
     final tagR = 2.0 / scale;
 
@@ -416,20 +424,27 @@ class RedThreadPainter extends CustomPainter {
       Paint()..color = AppColors.agedPaper.withValues(alpha: 0.88 * opacity),
     );
 
-    // 标签背景描边：棕褐色细线，增强复古感
+    // 标签背景描边：关系类型色，弱化但可辨
     canvas.drawRRect(
       bgRect,
       Paint()
-        ..color = AppColors.sepia.withValues(alpha: 0.12 * opacity)
+        ..color = palette.base.withValues(alpha: 0.3 * opacity)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.4 / scale,
+        ..strokeWidth = 0.5 / scale,
     );
 
-    // 居中绘制标签文字
+    // 关系类型圆点：让连线类型在标签旁始终可见
+    canvas.drawCircle(
+      Offset(bgRect.left + padding + dotRadius, mid.dy),
+      dotRadius,
+      Paint()..color = palette.base.withValues(alpha: 0.9 * opacity),
+    );
+
+    // 绘制标签文字，整体右移为类型圆点留出空间
     textPainter.paint(
       canvas,
       Offset(
-        mid.dx - textPainter.width / 2,
+        bgRect.left + padding + dotDiameter + dotGap,
         mid.dy - textPainter.height / 2,
       ),
     );

@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
+import 'connection_model.dart';
+
 /// 渲染后的连接线数据
 ///
 /// 每条红线的几何信息，包含 4 个贝塞尔控制点，
@@ -21,10 +23,14 @@ class RenderedConnection extends Equatable {
   /// 连接线的张力值（0.0 ~ 3.0）
   final double tension;
 
+  /// 关系类型，决定红线的颜色与图例
+  final ConnectionType connectionType;
+
   const RenderedConnection({
     required this.connectionId,
     required this.points,
     this.tension = 0,
+    this.connectionType = ConnectionType.neutral,
   });
 
   /// 轴对齐包围盒（AABB），由 4 个控制点的极值构成。
@@ -46,5 +52,5 @@ class RenderedConnection extends Equatable {
   }
 
   @override
-  List<Object?> get props => [connectionId, tension, ...points];
+  List<Object?> get props => [connectionId, tension, connectionType, ...points];
 }

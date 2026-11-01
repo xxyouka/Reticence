@@ -1,13 +1,13 @@
-/// 人物卡片详情对话框
+/// 线索卡片详情对话框
 ///
-/// 侦探线索墙应用中用于查看和编辑人物卡片信息的底部抽屉对话框。
-/// 用户点击线索墙上的人物卡片后弹出，可以查看该人物关联的连线数量、
-/// 编辑姓名/标签/备注，以及执行连线、保存、删除等操作。
+/// 侦探线索墙应用中用于查看和编辑线索卡片信息的底部抽屉对话框。
+/// 用户点击线索墙上的卡片后弹出，可以查看该线索关联的连线数量、
+/// 编辑类型/名称/标签/备注，以及执行连线、保存、删除等操作。
 ///
-/// 设计理念：模拟侦探翻开一张人物便签卡查看背面详细笔记的体验。
-/// - 顶部显示人物姓名和关联连线数（红色徽章），一眼掌握关键信息
+/// 设计理念：模拟侦探翻开一张线索便签卡查看背面详细笔记的体验。
+/// - 顶部显示线索名称和关联连线数（红色徽章），一眼掌握关键信息
 /// - 三个操作按钮"连线/保存/删除"对应侦探工作流中的核心动作：
-///   连线 = 建立人物关系，保存 = 更新笔记，删除 = 移除线索
+///   连线 = 建立线索关系，保存 = 更新笔记，删除 = 移除线索
 /// - 删除操作需要二次确认，并提示将连带删除的连线数量
 /// - 使用 ConsumerStatefulWidget 以便通过 Riverpod 读写卡片和连线数据
 library;
@@ -22,20 +22,22 @@ import '../../providers/card_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/photo_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/clue_type_style.dart';
 import '../../utils/app_haptics.dart';
 import 'app_dialog_components.dart';
+import 'type_selectors.dart';
 
-/// 人物卡片详情对话框
+/// 线索卡片详情对话框
 ///
 /// 以底部抽屉形式展示，包含以下功能区域：
-/// - 标题栏：人物姓名 + 关联连线数量徽章
-/// - 编辑区：姓名、标签、备注三个输入框
+/// - 标题栏：线索名称 + 关联连线数量徽章
+/// - 编辑区：类型、名称、标签、备注
 /// - 操作栏：连线、保存、删除三个按钮
 ///
 /// [onStartConnecting] 回调用于启动连线模式——关闭当前对话框后
 /// 通知父组件进入"从该卡片出发画线"的交互状态。
 class CardDetailDialog extends ConsumerStatefulWidget {
-  /// 要查看/编辑的人物卡片数据
+  /// 要查看/编辑的线索卡片数据
   final ClueCard card;
 
   /// 启动连线模式的回调，关闭对话框后触发
@@ -65,9 +67,13 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
   /// 是否正在保存中
   bool _isLoading = false;
 
+  /// 当前选择的线索类型
+  late CardType _selectedType;
+
   @override
   void initState() {
     super.initState();
+    _selectedType = widget.card.cardType;
     _nameController = TextEditingController(text: widget.card.name);
     _descController =
         TextEditingController(text: widget.card.description ?? '');
@@ -117,7 +123,8 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
           if (card != null) {
             items.add(_ConnectedItem(
               name: card.name,
-              icon: Icons.person,
+              icon: card.cardType.icon,
+              color: card.cardType.color,
               label: conn.label,
             ));
           }
@@ -136,7 +143,8 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
           if (card != null) {
             items.add(_ConnectedItem(
               name: card.name,
-              icon: Icons.person,
+              icon: card.cardType.icon,
+              color: card.cardType.color,
               label: conn.label,
             ));
           }
@@ -183,6 +191,7 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
     await ref.read(cardListProvider.notifier).updateCard(
           widget.card.copyWith(
             name: name,
+            cardType: _selectedType,
             tags: tags,
             description: descText.isEmpty ? null : descText,
             clearDescription: descText.isEmpty,
@@ -227,12 +236,12 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
         children: [
           // 拖拽手柄
           const AppDragHandle(),
-          // 标题栏：人物姓名 + 连线数量徽章
+          // 标题栏：线索名称 + 连线数量徽章
           AppDialogTitle(
-            icon: Icons.person,
+            icon: _selectedType.icon,
             title: widget.card.name,
-            iconBgColor: AppColors.agedPaper.withValues(alpha: 0.5),
-            iconColor: AppColors.sepia.withValues(alpha: 0.6),
+            iconBgColor: _selectedType.color.withValues(alpha: 0.1),
+            iconColor: _selectedType.color.withValues(alpha: 0.75),
             trailing: cardConnections.isNotEmpty
                 ? Container(
                     padding:
@@ -272,12 +281,23 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // 线索类型选择器
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
+                  child: ClueTypeSelector(
+                    selected: _selectedType,
+                    onChanged: (type) {
+                      setState(() => _selectedType = type);
+                    },
+                  ),
+                ),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 姓名编辑框
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: DialogConstants.horizontalPadding),
                   child: AppTextField(
                     controller: _nameController,
-                    hint: '姓名',
+                    hint: '姓名或名称',
                     autofocus: true,
                     textInputAction: TextInputAction.next,
                   ),
@@ -432,7 +452,8 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
                   children: [
                     Icon(item.icon,
                         size: 11,
-                        color: AppColors.sepia.withValues(alpha: 0.6)),
+                        color: (item.color ?? AppColors.sepia)
+                            .withValues(alpha: 0.6)),
                     const SizedBox(width: 4),
                     Text(
                       item.name,
@@ -474,11 +495,13 @@ class _CardDetailDialogState extends ConsumerState<CardDetailDialog>
 class _ConnectedItem {
   final String name;
   final IconData icon;
+  final Color? color;
   final String? label;
 
   const _ConnectedItem({
     required this.name,
     required this.icon,
+    this.color,
     this.label,
   });
 }

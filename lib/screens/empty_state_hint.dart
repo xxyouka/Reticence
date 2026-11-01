@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 ///
 /// 当画布上没有任何卡片和照片时显示，
 /// 引导用户了解基本操作方式：
-/// - 右下角 + 按钮添加人物
+/// - 右下角 + 按钮添加线索
 /// - 单击选中 · 双击编辑
 /// - 双指缩放 · 双击空白适应
 /// - 长按图钉拖拽连线
@@ -152,7 +152,7 @@ class _EmptyStateHintState extends State<EmptyStateHint>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '添加第一个人物',
+                    '添加第一条线索',
                     style: TextStyle(
                       color: AppColors.inkBlack.withValues(alpha: 0.45),
                       fontSize: 14,
@@ -172,7 +172,7 @@ class _EmptyStateHintState extends State<EmptyStateHint>
                     ),
                     child: Column(
                       children: [
-                        _animatedHintRow(0, Icons.add_circle_outline, '右下角 + 添加人物'),
+                        _animatedHintRow(0, Icons.add_circle_outline, '右下角 + 添加线索'),
                         const SizedBox(height: 6),
                         _animatedHintRow(1, Icons.touch_app, '单击选中 · 双击编辑'),
                         const SizedBox(height: 6),

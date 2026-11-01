@@ -1,9 +1,10 @@
-/// 添加人物卡片对话框
+/// 添加线索卡片对话框
 ///
 /// 侦探线索墙应用的核心交互组件之一。当用户在画布空白处长按或点击添加按钮时，
-/// 弹出此底部抽屉式对话框，用于录入新人物的基本信息。
+/// 弹出此底部抽屉式对话框，用于录入新线索的类型和基本信息。
 ///
-/// 设计理念：模拟侦探在软木板上钉上一张新的人物便签卡的过程。
+/// 设计理念：模拟侦探在软木板上钉上一张新的线索便签卡的过程。
+/// - 类型选择器让人物、地点、事件在创建时就拥有身份
 /// - 提交按钮文案"钉上去"呼应图钉钉入软木板的动作隐喻
 /// - 每张卡片创建时会自动生成随机旋转角度和偏移量，模拟手工钉卡片时的
 ///   自然不规则感，避免所有卡片整齐排列的机械感
@@ -18,9 +19,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/card_model.dart';
 import '../../providers/card_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/clue_type_style.dart';
 import '../../theme/wall_constants.dart';
 import '../../utils/app_haptics.dart';
 import 'app_dialog_components.dart';
+import 'type_selectors.dart';
 
 /// 添加人物卡片对话框
 ///
@@ -71,6 +74,9 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
   /// 是否正在提交中
   bool _isLoading = false;
 
+  /// 当前选择的线索类型
+  CardType _selectedType = CardType.person;
+
   @override
   void initState() {
     super.initState();
@@ -120,6 +126,7 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
     final newCard = await ref.read(cardListProvider.notifier).addCard(
           ClueCard(
             name: name,
+            cardType: _selectedType,
             tags: tags,
             // 备注为可选项，空字符串存储为 null
             description: _descController.text.trim().isEmpty
@@ -154,9 +161,11 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
           // 顶部拖拽手柄，视觉提示用户可以下拉关闭
           const AppDragHandle(),
           // 对话框标题
-          const AppDialogTitle(
-            icon: Icons.person_add,
-            title: '新人物',
+          AppDialogTitle(
+            icon: _selectedType.icon,
+            title: '新${_selectedType.label}',
+            iconColor: _selectedType.color.withValues(alpha: 0.75),
+            iconBgColor: _selectedType.color.withValues(alpha: 0.1),
           ),
           const SizedBox(height: DialogConstants.sectionGapMedium),
           // 输入框区域（带入场动画）
@@ -165,6 +174,18 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // 线索类型选择器
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: DialogConstants.horizontalPadding),
+                  child: ClueTypeSelector(
+                    selected: _selectedType,
+                    onChanged: (type) {
+                      setState(() => _selectedType = type);
+                    },
+                  ),
+                ),
+                const SizedBox(height: DialogConstants.sectionGapSmall),
                 // 姓名输入框
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -172,7 +193,7 @@ class _AddCardDialogState extends ConsumerState<AddCardDialog>
                   child: AppTextField(
                     controller: _nameController,
                     focusNode: _nameFocus,
-                    hint: '姓名',
+                    hint: '姓名或名称',
                     autofocus: true,
                     textInputAction: TextInputAction.next,
                   ),

@@ -78,15 +78,8 @@ class ConnectionRepository {
       fromPhotoId: data.fromPhotoId,
       toPhotoId: data.toPhotoId,
       label: data.label,
-      connectionType: _parseConnectionType(data.connectionType),
+      connectionType: ConnectionType.fromName(data.connectionType),
       createdAt: data.createdAt,
-    );
-  }
-
-  ConnectionType _parseConnectionType(String value) {
-    return ConnectionType.values.firstWhere(
-      (type) => type.name == value,
-      orElse: () => ConnectionType.neutral,
     );
   }
 

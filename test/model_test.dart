@@ -54,12 +54,36 @@ void main() {
     test('default values are applied', () {
       final card = ClueCard(name: 'Test');
       expect(card.id, isNull);
+      expect(card.cardType, CardType.person);
       expect(card.tags, isEmpty);
       expect(card.x, 0);
       expect(card.y, 0);
       expect(card.rotation, 0);
       expect(card.createdAt, isNotNull);
       expect(card.updatedAt, isNotNull);
+    });
+
+    test('cardType defaults to person and can be changed via copyWith', () {
+      final card = ClueCard(name: 'Old Pier');
+      expect(card.cardType, CardType.person);
+
+      final location = card.copyWith(cardType: CardType.location);
+      expect(location.cardType, CardType.location);
+      expect(card.cardType, CardType.person);
+    });
+
+    test('cardType participates in equality', () {
+      final person = ClueCard(id: 1, name: 'Same');
+      final place = ClueCard(id: 1, name: 'Same', cardType: CardType.location);
+      expect(person, isNot(equals(place)));
+    });
+
+    test('CardType.fromName parses names and falls back to person', () {
+      expect(CardType.fromName('location'), CardType.location);
+      expect(CardType.fromName('event'), CardType.event);
+      expect(CardType.fromName('person'), CardType.person);
+      expect(CardType.fromName('unknown'), CardType.person);
+      expect(CardType.fromName(null), CardType.person);
     });
   });
 
@@ -112,7 +136,28 @@ void main() {
       final conn = Connection(fromCardId: 1, toCardId: 2);
       expect(conn.id, isNull);
       expect(conn.label, isNull);
+      expect(conn.connectionType, ConnectionType.neutral);
       expect(conn.createdAt, isNotNull);
+    });
+
+    test('connectionType can be changed and participates in equality', () {
+      final conn = Connection(id: 1, fromCardId: 10, toCardId: 20);
+      final ally = conn.copyWith(connectionType: ConnectionType.ally);
+
+      expect(ally.connectionType, ConnectionType.ally);
+      expect(conn.connectionType, ConnectionType.neutral);
+      expect(ally, isNot(equals(conn)));
+    });
+
+    test('ConnectionType labels and fromName fallback', () {
+      expect(ConnectionType.neutral.label, '中立');
+      expect(ConnectionType.ally.label, '盟友');
+      expect(ConnectionType.enemy.label, '敌对');
+      expect(ConnectionType.custom.label, '自定义');
+      expect(ConnectionType.fromName('ally'), ConnectionType.ally);
+      expect(ConnectionType.fromName('enemy'), ConnectionType.enemy);
+      expect(ConnectionType.fromName('nonsense'), ConnectionType.neutral);
+      expect(ConnectionType.fromName(null), ConnectionType.neutral);
     });
   });
 

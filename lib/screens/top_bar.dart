@@ -171,7 +171,7 @@ class _TopBarState extends State<TopBar> {
                             ),
                             autofocus: true,
                             decoration: InputDecoration(
-                              hintText: '搜索线索...',
+                              hintText: '搜索线索、类型或关系...',
                               hintStyle: TextStyle(
                                 color: AppColors.sepia.withValues(alpha: 0.5),
                                 fontSize: 14,

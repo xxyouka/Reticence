@@ -1,7 +1,7 @@
 /// 线索墙主屏幕 —— Reticence 应用的核心视图
 ///
 /// 本文件实现了侦探风格线索墙的完整交互界面。用户可以在软木板上
-/// 钉人物卡片、照片卡片，并用红线将它们连接起来，模拟侦探推理时
+/// 钉线索卡片、照片卡片，并用红线将它们连接起来，模拟侦探推理时
 /// 的线索墙效果。
 ///
 /// 主要组件结构：
@@ -549,7 +549,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 2. 不允许自连接（源卡片 == 目标卡片时取消）
   /// 3. 检查是否已存在相同连线（双向去重）
   /// 4. 通过 Riverpod provider 持久化新连线
-  /// 5. 创建成功后触发中等强度触觉反馈
+  /// 5. 创建成功后触发中等强度触觉反馈，并自动打开关系详情面板
+  ///    让用户立即选择关系类型、填写关系描述
   Future<void> _tryConnect({int? toCardId, int? toPhotoId}) async {
     if (!_controller.connectionHandler.isConnecting) return;
     final fromCardId = _controller.connectionHandler.connectingFromCardId;
@@ -592,6 +593,13 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     await ref.read(undoRedoProvider.notifier).executeCommand(command);
     if (command.createdConnection != null) {
       AppHaptics.connect();
+      final created = command.createdConnection!;
+      _endConnecting();
+      // 等当前指针事件处理完毕再弹面板，避免与手势收尾竞争
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showConnectionDetail(created);
+      });
+      return;
     }
     _endConnecting();
   }

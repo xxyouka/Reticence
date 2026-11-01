@@ -92,21 +92,40 @@
 
 ---
 
+## 线索类型与关系类型（v1.1）
+
+- [x] 🔴 新建线索时可选择人物/地点/事件，面板标题随类型变化
+- [x] 🔴 卡片详情可修改类型，保存后持久化并刷新视觉
+- [x] 🔴 卡片始终显示类型徽章（图标 + 中文名），即使没有标签
+- [x] 🔴 图钉颜色按类型区分：人物红、地点蓝、事件黄铜
+- [x] 🔴 连线详情可选择中立/盟友/敌对/自定义，保存后持久化
+- [x] 🔴 创建连线后自动打开关系详情面板，立即设置类型与描述
+- [x] 🔴 关系线按类型着色：中立红、盟友绿、敌对近黑、自定义灰蓝
+- [x] 🔴 连线标签左侧显示关系类型色圆点
+- [x] 🔴 搜索支持类型中文名（人物/地点/事件、中立/盟友/敌对/自定义）
+- [x] 🔴 类型字段往返持久化测试 + 选择器/徽章/关系保存组件测试
+- [x] 🔴 小屏 + 键盘场景下对话框可滚动，不遮挡保存按钮
+
+---
+
 ## 搜索
 
-- [x] 🔴 搜索功能：SearchController 支持按名称/标签搜索卡片和照片
+- [x] 🔴 搜索功能：SearchController 支持按名称/标签/描述/类型搜索卡片和照片
+- [x] 🔴 关系搜索：支持按关系类型（中立/盟友/敌对/自定义）匹配连线
 - [x] 🔴 搜索结果：SearchResultBadge 显示匹配数量，点击定位到目标
 
 ---
 
 ## 测试
 
-- [x] 🔴 Repository 单元测试覆盖率 ≥ 80%（Card/Photo/Connection 三个 Repository 全部 CRUD 覆盖）——26 个测试
+- [x] 🔴 Repository 单元测试覆盖率 ≥ 80%（Card/Photo/Connection 三个 Repository 全部 CRUD 覆盖，含 cardType 往返）——28 个测试
 - [x] 🔴 Provider 单元测试：CardListNotifier/PhotoListNotifier/ConnectionListNotifier CRUD + 双阶段位置更新——17 个测试
-- [x] 🔴 Handler 单元测试：DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier——32 个测试
-- [x] 🔴 Model 单元测试：ClueCard/PhotoCard/Connection 值相等/copyWith/默认值——13 个测试
-- [x] 🔴 Widget 测试：画布手势（拖拽/缩放/平移）、应用启动
-- [x] 🔴 黄金测试：onboarding 页面视觉回归
+- [x] 🔴 Handler 单元测试：DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier——38 个测试
+- [x] 🔴 Model 单元测试：ClueCard/PhotoCard/Connection 值相等/copyWith/默认值/类型枚举——21 个测试
+- [x] 🔴 类型系统测试：搜索类型匹配、类型选择器、卡片徽章、关系类型保存——10 个测试
+- [x] 🔴 Widget 测试：画布手势（拖拽/缩放/平移）、应用启动——6 个测试
+- [x] 🔴 性能测试：10/30 张卡片渲染基准、模型创建性能——4 个测试
+- [x] 🔴 黄金测试：onboarding 页面视觉回归——1 个测试
 - [ ] 🔴 集成测试：完整用户流程（添加卡片→连线→编辑→重启验证持久化），在真机/模拟器通过
 - [ ] 🔴 降级集成测试：mock Forge2D 失败 → 完整流程在降级模式下通过
 

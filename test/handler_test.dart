@@ -190,13 +190,13 @@ void main() {
       final photo = PhotoCard(id: 1, imagePath: 'a.jpg', x: 100, y: 100);
       handler.onDragStart(1, const Offset(100, 100), photo);
       // 在边界内移动
-      final pos1 = handler.onDragUpdate(const Offset(200, 200), 1.0);
+      handler.onDragUpdate(const Offset(200, 200), 1.0);
       // 移动到边界外
       final pos2 = handler.onDragUpdate(const Offset(6000, 6000), 1.0);
       // 边界外的移动应该被阻尼减速
       expect(pos2, isNotNull);
       // 边界外的实际位移应该小于线性位移
-      final linearDelta = 6000 - 100;
+      const linearDelta = 6000.0 - 100.0;
       final actualDelta = pos2!.dx - 100;
       expect(actualDelta, lessThan(linearDelta.toDouble()));
     });

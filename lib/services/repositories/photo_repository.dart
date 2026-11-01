@@ -93,10 +93,9 @@ class PhotoRepository {
   /// - [id] 使用 [Value] 包装确保 WHERE 子句能定位到正确记录
   /// - [updatedAt] 自动设置为当前时间，记录最后修改时间
   Future<bool> updatePhoto(PhotoCard photo) async {
+    if (photo.id == null) return false;
     return await photoDao.updatePhoto(_toCompanion(photo).copyWith(
-      // 确保 id 被包含在更新条件中
       id: Value(photo.id!),
-      // 自动更新修改时间
       updatedAt: Value(DateTime.now()),
     ));
   }

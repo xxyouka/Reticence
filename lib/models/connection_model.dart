@@ -17,10 +17,19 @@ import 'package:equatable/equatable.dart';
 /// 与数据库中的 `connection_type` 字段对应，用于区分中立、盟友、敌对
 /// 和自定义关系。默认值为 [ConnectionType.neutral]。
 enum ConnectionType {
-  neutral,
-  ally,
-  enemy,
-  custom,
+  neutral('中立'),
+  ally('盟友'),
+  enemy('敌对'),
+  custom('自定义');
+
+  const ConnectionType(this.label);
+
+  /// 中文显示名称
+  final String label;
+
+  /// 从数据库字符串解析类型，未知值回退为 [ConnectionType.neutral]
+  static ConnectionType fromName(String? name) =>
+      values.asNameMap()[name] ?? ConnectionType.neutral;
 }
 
 /// 线索关联
@@ -97,6 +106,9 @@ class Connection extends Equatable {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now() {
     assert(_hasValidEndpoints, 'Connection 必须恰好有两个端点 ID 非 null');
+    if (!_hasValidEndpoints) {
+      throw ArgumentError('Connection 必须恰好有两个端点 ID 非 null');
+    }
   }
 
   /// 是否恰好有两个端点 ID 非 null（连接的不变量）
