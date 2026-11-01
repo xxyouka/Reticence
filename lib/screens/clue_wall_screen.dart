@@ -71,6 +71,7 @@ import 'canvas_gesture_handler.dart';
 import 'connecting_hint.dart';
 import 'connecting_line_painter.dart';
 import 'empty_state_hint.dart';
+import 'focus_mode_badge.dart';
 import 'relationship_legend_bar.dart';
 import 'search_result_badge.dart';
 import 'thread_layer.dart';
@@ -616,21 +617,28 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     _endConnecting();
   }
 
-  /// 当前筛选下可被点击/拨动的连线
+  /// 当前筛选/聚焦下可被点击/拨动的连线
   ///
-  /// 被筛选淡化的连线不可命中；搜索命中的连线即使被筛选也保持可交互，
+  /// 被筛选或聚焦淡化的连线不可命中；搜索命中的连线即使被筛选也保持可交互，
   /// 避免用户搜到却点不到。
   List<RenderedConnection> _hittableRenderedConnections() {
     final rendered = ref.read(renderedConnectionsProvider);
     final filter = ref.read(relationshipFilterProvider);
-    if (filter.isEmpty) return rendered;
-
     final searchIds = _controller.searchCtrl.results.connectionIds;
-    return rendered
-        .where((conn) =>
-            filter.contains(conn.connectionType) ||
-            searchIds.contains(conn.connectionId))
-        .toList();
+    final focusActive = _isFocusActive;
+    final focusIds = _controller.selection.highlightedConnectionIds;
+
+    if (filter.isEmpty && !focusActive) return rendered;
+
+    return rendered.where((conn) {
+      final typeVisible = filter.isEmpty ||
+          filter.contains(conn.connectionType) ||
+          searchIds.contains(conn.connectionId);
+      final focusVisible = !focusActive ||
+          focusIds.contains(conn.connectionId) ||
+          searchIds.contains(conn.connectionId);
+      return typeVisible && focusVisible;
+    }).toList();
   }
 
   /// 画布点击处理
@@ -638,9 +646,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 点击画布空白区域时的逻辑：
   /// 1. 取消焦点（收起键盘）
   /// 2. 如果正在连线模式，取消连线
-  /// 3. 清除卡片选中状态
-  /// 4. 将屏幕坐标转换为画布坐标，检测是否点击了红线
-  /// 5. 如果命中红线，显示连线详情对话框
+  /// 3. 按当前聚焦/筛选状态检测是否点击了红线
+  /// 4. 命中红线时打开详情并保留聚焦；未命中时清除选中/聚焦
   void _handleCanvasTap(TapUpDetails details) {
     FocusManager.instance.primaryFocus?.unfocus();
     _toolButtonsKey.currentState?.collapse();
@@ -650,7 +657,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       return;
     }
 
-    _clearSelection();
+    // 先按点击前的聚焦状态确定可命中连线，避免点击淡化线时
+    // 先清除选中导致它重新变成可命中。
+    final renderedConnections = _hittableRenderedConnections();
 
     // 将屏幕坐标转换为画布坐标，用于检测是否点击了红线
     final canvasPos = MatrixUtils.transformPoint(
@@ -660,7 +669,6 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
 
     // 使用 RedThreadPainter 的命中测试检测是否点击了红线
     // 命中阈值根据当前缩放比例调整，缩放越小阈值越大
-    final renderedConnections = _hittableRenderedConnections();
     final hitId = RedThreadPainter.hitTestConnection(
       canvasPos,
       renderedConnections,
@@ -671,7 +679,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       final connections = ref.read(connectionListProvider).value ?? [];
       final conn = connections.where((c) => c.id == hitId).firstOrNull;
       if (conn != null) _showConnectionDetail(conn);
+      return;
     }
+
+    _clearSelection();
   }
 
   /// 画布长按处理 —— 拨动红线
@@ -834,6 +845,21 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     _listenToError(cardErrorProvider, cardListProvider);
     _listenToError(connectionErrorProvider, connectionListProvider);
     _listenToError(photoErrorProvider, photoListProvider);
+
+    // 连线增删后刷新聚焦网络，避免新增关系仍被淡化、已删关系残留
+    ref.listenManual(connectionListProvider, (previous, next) {
+      final connections = next.value;
+      if (connections == null || !_controller.selection.hasSelection) return;
+
+      final selectedCardId = _controller.selection.selectedCardId;
+      final selectedPhotoId = _controller.selection.selectedPhotoId;
+      if (selectedCardId != null) {
+        _controller.selection.selectCard(selectedCardId, connections);
+      } else if (selectedPhotoId != null) {
+        _controller.selection.selectPhoto(selectedPhotoId, connections);
+      }
+      if (mounted) setState(() {});
+    });
   }
 
   /// 监听单个错误 Provider，失败时显示 SnackBar + 重试
@@ -913,6 +939,32 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => ConnectionDetailDialog(connection: connection),
     );
+  }
+
+  /// 是否处于关系网络聚焦模式
+  ///
+  /// 搜索时让位给搜索结果高亮；连线时暂停淡化，方便看清可连接目标。
+  bool get _isFocusActive =>
+      _controller.selection.hasSelection &&
+      !_controller.searchCtrl.isSearching &&
+      !_controller.connectionHandler.isConnecting;
+
+  /// 聚焦徽章上显示的线索名称
+  String? _focusLabel(List<ClueCard> cards, List<PhotoCard> photos) {
+    if (!_isFocusActive) return null;
+
+    final cardId = _controller.selection.selectedCardId;
+    if (cardId != null) {
+      return cards.firstWhereOrNull((card) => card.id == cardId)?.name ?? '线索';
+    }
+
+    final photoId = _controller.selection.selectedPhotoId;
+    if (photoId != null) {
+      final caption =
+          photos.firstWhereOrNull((photo) => photo.id == photoId)?.caption?.trim();
+      return caption == null || caption.isEmpty ? '照片' : caption;
+    }
+    return '线索';
   }
 
   /// 选中一张卡片
@@ -1022,6 +1074,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final cards = cardsAsync.value ?? const <ClueCard>[];
     final connections = connectionsAsync.value ?? const <Connection>[];
     final photos = photosAsync.value ?? const <PhotoCard>[];
+    final focusLabel = _focusLabel(cards, photos);
 
     // 根据是否有浮动卡片启停 Ticker
     _updateFloatTicker(cards, photos);
@@ -1054,6 +1107,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
               // 搜索匹配结果：卡片、照片、连线
               // 搜索状态由 AppSearchController 管理
               final isSearching = _controller.searchCtrl.isSearching;
+              final focusActive = _isFocusActive;
               final searchMatches = _controller.searchCtrl.results;
               final cardWidgets = _buildCardWidgets(
                   cards, isSearching ? searchMatches.cardIds : null);
@@ -1104,6 +1158,9 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                               canvasMotionNotifier: _canvasMotionNotifier,
                               connectionLabels: connectionLabels,
                               pluckNotifier: _threadPluckNotifier,
+                              focusActive: focusActive,
+                              focusConnectionIds:
+                                  _controller.selection.highlightedConnectionIds,
                               highlightedConnectionIds: isSearching
                                   ? searchMatches.connectionIds
                                   : const {},
@@ -1164,6 +1221,11 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                       setState(() {});
                     },
                   ),
+                  if (focusLabel != null)
+                    FocusModeBadge(
+                      label: focusLabel,
+                      onClear: _clearSelection,
+                    ),
                   if (_controller.connectionHandler.isConnecting) const ConnectingHint(),
                   ToolButtons(
                     key: _toolButtonsKey,
@@ -1202,12 +1264,17 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final normal = <Widget>[];
     final floating = <Widget>[];
 
+    final focusActive = _isFocusActive;
+    final focusCardIds = _controller.selection.highlightedCardIds;
+
     for (final card in cards) {
       final isMatch =
           matchIds != null && matchIds.contains(card.id); // 是否匹配搜索结果
       final isFloating = card.id != null &&
           _controller.selection.highlightedCardIds.contains(card.id!); // 是否需要浮动（选中/高亮）
       final isPrimary = card.id == _controller.selection.selectedCardId; // 是否为当前选中的主卡片
+      final isFocusDimmed = focusActive &&
+          (card.id == null || !focusCardIds.contains(card.id)); // 是否不属于聚焦网络
 
       final widget = Positioned(
         left: card.x,
@@ -1224,6 +1291,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
             isHighlighted: isMatch,
             isFloating: isFloating,
             isPrimary: isPrimary,
+            isDimmed: isFocusDimmed,
             isCanvasPinching: _canvasPinching.value,
             onPointerDown: () => _cardPointerDown.value = true,
             onPointerUp: () => _cardPointerDown.value = false,
@@ -1285,12 +1353,17 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     final photoWidgets = <Widget>[];
     final floatingWidgets = <Widget>[];
 
+    final focusActive = _isFocusActive;
+    final focusPhotoIds = _controller.selection.highlightedPhotoIds;
+
     for (final photo in photos) {
       final isMatch = matchIds != null && matchIds.contains(photo.id);
       final isPrimary = photo.id == _controller.selection.selectedPhotoId;
       final isFloating = photo.id != null &&
           (_controller.selection.selectedPhotoId == photo.id ||
               _controller.selection.highlightedPhotoIds.contains(photo.id));
+      final isFocusDimmed = focusActive &&
+          (photo.id == null || !focusPhotoIds.contains(photo.id));
 
       final widget = Positioned(
         left: photo.x,
@@ -1301,6 +1374,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
             photo: photo,
             isPrimary: isPrimary,
             isHighlighted: isMatch || isFloating,
+            isDimmed: isFocusDimmed,
             isConnectingTarget: _controller.connectionHandler.isConnecting &&
                 photo.id != _controller.connectionHandler.connectingFromPhotoId,
             onPointerDown: () => _cardPointerDown.value = true,

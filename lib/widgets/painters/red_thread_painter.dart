@@ -45,6 +45,12 @@ class RedThreadPainter extends CustomPainter {
   /// 不在集合中的连线会以极低透明度绘制，不显示标签，也不参与命中。
   final Set<ConnectionType> activeFilter;
 
+  /// 是否处于关系网络聚焦模式
+  final bool focusActive;
+
+  /// 聚焦网络内的连线 ID；不在集合中的连线会被淡化
+  final Set<int> focusConnectionIds;
+
   /// 连线波动位移（connectionId → 每个采样点沿法线的位移，单位像素）
   ///
   /// 只有正在拨动的连线会出现在 map 中；长度 = 采样段数 + 1。
@@ -72,6 +78,8 @@ class RedThreadPainter extends CustomPainter {
     required this.connectionLabels,
     this.highlightedIds = const {},
     this.activeFilter = const {},
+    this.focusActive = false,
+    this.focusConnectionIds = const {},
     this.waveDisplacements = const {},
     this.swayTime = 0,
     this.swayStrength = 1,
@@ -184,7 +192,9 @@ class RedThreadPainter extends CustomPainter {
           : _buildPath(swayedConn.points);
       final isFilteredOut = activeFilter.isNotEmpty &&
           !activeFilter.contains(conn.connectionType);
-      if (isFilteredOut && !isHighlighted) {
+      final isFocusDimmed =
+          focusActive && !focusConnectionIds.contains(conn.connectionId);
+      if ((isFilteredOut || isFocusDimmed) && !isHighlighted) {
         _drawDimmedThread(canvas, swayedConn, path, opacity);
         canvas.restore();
         continue;
@@ -540,6 +550,8 @@ class RedThreadPainter extends CustomPainter {
         connectionLabels != oldDelegate.connectionLabels ||
         highlightedIds != oldDelegate.highlightedIds ||
         activeFilter != oldDelegate.activeFilter ||
+        focusActive != oldDelegate.focusActive ||
+        focusConnectionIds != oldDelegate.focusConnectionIds ||
         waveDisplacements != oldDelegate.waveDisplacements ||
         swayTime != oldDelegate.swayTime ||
         swayStrength != oldDelegate.swayStrength ||

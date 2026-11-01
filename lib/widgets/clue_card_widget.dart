@@ -82,6 +82,9 @@ class ClueCardWidget extends StatefulWidget {
   /// 父画布是否正在处理双指缩放手势
   final bool isCanvasPinching;
 
+  /// 是否被关系网络聚焦淡化
+  final bool isDimmed;
+
   /// 指针按下回调（通知父组件）
   final VoidCallback? onPointerDown;
 
@@ -108,6 +111,7 @@ class ClueCardWidget extends StatefulWidget {
     this.isFloating = false,
     this.isPrimary = false,
     this.isCanvasPinching = false,
+    this.isDimmed = false,
     this.onPointerDown,
     this.onPointerUp,
     this.floatTimeNotifier,
@@ -634,7 +638,12 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
 
     final effectiveDecoration = dragDecoration ?? targetDecoration;
 
-    return FadeTransition(
+    return AnimatedOpacity(
+      opacity: widget.isDimmed ? WallConstants.focusDimOpacity : 1.0,
+      duration:
+          const Duration(milliseconds: WallConstants.focusDimAnimationMs),
+      curve: Curves.easeOutCubic,
+      child: FadeTransition(
       opacity: _entranceController,
       child: ScaleTransition(
         scale: Tween<double>(begin: 0.8, end: 1.0).animate(
@@ -758,6 +767,7 @@ class _ClueCardWidgetState extends State<ClueCardWidget>
             ),
           ),
         ],
+      ),
       ),
       ),
       ),

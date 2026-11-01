@@ -21,6 +21,12 @@ class SelectionManager {
   /// 高亮照片 ID 集合（选中卡片的直接关联照片）
   final Set<int> highlightedPhotoIds = {};
 
+  /// 聚焦网络内的连线 ID 集合（与选中卡片/照片直接相连的连线）
+  ///
+  /// 用于聚焦模式下保持这些连线完整显示，其余连线淡化。
+  /// 每次选择都替换为新集合，确保渲染层能通过引用变化感知网络切换。
+  Set<int> highlightedConnectionIds = {};
+
   /// 是否有任何选中项
   bool get hasSelection => selectedCardId != null || selectedPhotoId != null;
 
@@ -30,8 +36,13 @@ class SelectionManager {
   void selectCard(int cardId, List<Connection> connections) {
     final connectedCardIds = <int>{};
     final connectedPhotoIds = <int>{};
+    final connectedConnectionIds = <int>{};
 
     for (final conn in connections) {
+      if (conn.id != null &&
+          (conn.fromCardId == cardId || conn.toCardId == cardId)) {
+        connectedConnectionIds.add(conn.id!);
+      }
       if (conn.fromCardId == cardId && conn.toCardId != null) {
         connectedCardIds.add(conn.toCardId!);
       }
@@ -54,6 +65,7 @@ class SelectionManager {
     highlightedPhotoIds
       ..clear()
       ..addAll(connectedPhotoIds);
+    highlightedConnectionIds = connectedConnectionIds;
   }
 
   /// 选中一张照片
@@ -63,8 +75,13 @@ class SelectionManager {
   void selectPhoto(int photoId, List<Connection> connections) {
     final connectedCardIds = <int>{};
     final connectedPhotoIds = <int>{};
+    final connectedConnectionIds = <int>{};
 
     for (final conn in connections) {
+      if (conn.id != null &&
+          (conn.fromPhotoId == photoId || conn.toPhotoId == photoId)) {
+        connectedConnectionIds.add(conn.id!);
+      }
       if (conn.fromPhotoId == photoId && conn.toCardId != null) {
         connectedCardIds.add(conn.toCardId!);
       }
@@ -87,6 +104,7 @@ class SelectionManager {
       ..clear()
       ..add(photoId)
       ..addAll(connectedPhotoIds);
+    highlightedConnectionIds = connectedConnectionIds;
   }
 
   /// 清除所有选中状态
@@ -95,5 +113,6 @@ class SelectionManager {
     selectedPhotoId = null;
     highlightedCardIds.clear();
     highlightedPhotoIds.clear();
+    highlightedConnectionIds = {};
   }
 }

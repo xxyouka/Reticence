@@ -54,6 +54,9 @@ class PhotoCardWidget extends StatefulWidget {
   /// 是否高亮（与选中卡片有关联时高亮）
   final bool isHighlighted;
 
+  /// 是否被关系网络聚焦淡化
+  final bool isDimmed;
+
   /// 是否为主要选中项（当前选中的照片，视觉强调更强）
   final bool isPrimary;
 
@@ -84,6 +87,7 @@ class PhotoCardWidget extends StatefulWidget {
     this.onDragUpdate,
     this.onDragEnd,
     this.isHighlighted = false,
+    this.isDimmed = false,
     this.isPrimary = false,
     this.onPointerDown,
     this.onPointerUp,
@@ -459,7 +463,12 @@ class _PhotoCardWidgetState extends State<PhotoCardWidget>
         ? WallConstants.photoCornerRadiusVintage
         : WallConstants.photoCornerRadiusPolaroid;
 
-    return FadeTransition(
+    return AnimatedOpacity(
+      opacity: widget.isDimmed ? WallConstants.focusDimOpacity : 1.0,
+      duration:
+          const Duration(milliseconds: WallConstants.focusDimAnimationMs),
+      curve: Curves.easeOutCubic,
+      child: FadeTransition(
       opacity: _entranceController,
       child: ScaleTransition(
         scale: Tween<double>(begin: 0.8, end: 1.0).animate(
@@ -650,6 +659,7 @@ class _PhotoCardWidgetState extends State<PhotoCardWidget>
         ),
       ),
         ),
+      ),
       ),
     );
   }

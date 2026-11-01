@@ -30,6 +30,12 @@ class ThreadLayer extends ConsumerStatefulWidget {
   final Map<int, String?> connectionLabels;
   final Set<int> highlightedConnectionIds;
 
+  /// 是否处于关系网络聚焦模式
+  final bool focusActive;
+
+  /// 聚焦网络内的连线 ID
+  final Set<int> focusConnectionIds;
+
   /// 长按拨动事件；null 表示不支持拨动（测试/降级场景）
   final ValueListenable<ThreadPluckEvent?>? pluckNotifier;
 
@@ -39,6 +45,8 @@ class ThreadLayer extends ConsumerStatefulWidget {
     required this.canvasMotionNotifier,
     required this.connectionLabels,
     this.highlightedConnectionIds = const {},
+    this.focusActive = false,
+    this.focusConnectionIds = const {},
     this.pluckNotifier,
   });
 
@@ -333,13 +341,15 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
     _detectNewConnections(renderedConnections);
 
     // 语义层只统计当前可见/搜索命中的连线，避免朗读被淡化或隐藏的线
-    final visibleConnections = activeFilter.isEmpty
-        ? renderedConnections
-        : renderedConnections
-            .where((conn) =>
-                activeFilter.contains(conn.connectionType) ||
-                widget.highlightedConnectionIds.contains(conn.connectionId))
-            .toList();
+    final focusIds = widget.focusActive ? widget.focusConnectionIds : null;
+    final visibleConnections = renderedConnections.where((conn) {
+      final typeVisible = activeFilter.isEmpty ||
+          activeFilter.contains(conn.connectionType) ||
+          widget.highlightedConnectionIds.contains(conn.connectionId);
+      final focusVisible =
+          focusIds == null || focusIds.contains(conn.connectionId);
+      return typeVisible && focusVisible;
+    }).toList();
 
     return ValueListenableBuilder<double>(
       valueListenable: widget.canvasScaleNotifier,
@@ -373,6 +383,8 @@ class _ThreadLayerState extends ConsumerState<ThreadLayer>
                     connectionLabels: widget.connectionLabels,
                     highlightedIds: widget.highlightedConnectionIds,
                     activeFilter: activeFilter,
+                    focusActive: widget.focusActive,
+                    focusConnectionIds: widget.focusConnectionIds,
                     waveDisplacements: _waves.isEmpty
                         ? const <int, List<double>>{}
                         : {

@@ -108,6 +108,29 @@
 - **WHEN** 被筛选淡化的连线命中搜索
 - **THEN** 该连线仍保持高亮、显示标签并可点击
 
+### Requirement: 关系网络聚焦
+系统 SHALL 支持点选卡片或照片进入一度关系聚焦：选中项、直接关联的卡片/照片，以及它们与选中项之间的连线保持完整显示，其余卡片、照片和连线淡化。聚焦不修改任何数据。
+
+#### Scenario: 进入聚焦
+- **WHEN** 用户点击一张卡片或照片
+- **THEN** 该元素及其一度关系网络保持完整，其余元素淡化，顶部出现聚焦徽章
+
+#### Scenario: 切换与退出
+- **WHEN** 聚焦时点击另一张卡片、点击聚焦徽章或点击空白处
+- **THEN** 分别切换到新网络、退出聚焦、退出聚焦
+
+#### Scenario: 搜索与连线兼容
+- **WHEN** 聚焦时开始搜索或拖拽连线
+- **THEN** 暂停聚焦淡化，让搜索结果或可连接目标保持清晰，结束后恢复聚焦
+
+#### Scenario: 聚焦网络刷新
+- **WHEN** 聚焦期间新增或删除连线
+- **THEN** 聚焦网络自动刷新，新关系立即可见，已删除关系不再保留
+
+#### Scenario: 命中过滤
+- **WHEN** 聚焦模式下点击或长按一条被淡化的连线
+- **THEN** 该连线不打开详情、不产生拨动，只退出聚焦
+
 #### Scenario: 删除连线
 - **WHEN** 用户在连线编辑面板选择删除
 - **THEN** 连线被移除，两张卡片仍保留
@@ -301,9 +324,9 @@
 
 | 层级 | 工具 | 覆盖范围 | 当前状态 |
 |------|------|---------|---------|
-| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索、关系筛选、弦波模拟 | 143 个测试全部通过 |
-| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存、图例筛选、拨动集成 | 已覆盖 |
+| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索、关系筛选、弦波模拟、网络聚焦 | 149 个测试全部通过 |
+| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存、图例筛选、拨动集成、网络聚焦 | 已覆盖 |
 | 黄金测试 | golden_toolkit | 手账主题视觉回归 | 已覆盖 onboarding 页面 |
 | 集成测试 | integration_test | 完整流程 | 待补充 |
 
-> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存、关系图例计数与筛选切换、红线弦波传播/衰减/Ticker 自动停止。
+> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存、关系图例计数与筛选切换、红线弦波传播/衰减/Ticker 自动停止、一度关系网络聚焦与切换。

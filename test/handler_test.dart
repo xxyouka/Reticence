@@ -215,6 +215,7 @@ void main() {
       expect(manager.selectedPhotoId, isNull);
       expect(manager.highlightedCardIds, isEmpty);
       expect(manager.highlightedPhotoIds, isEmpty);
+      expect(manager.highlightedConnectionIds, isEmpty);
     });
 
     test('selectCard sets card and highlights connected cards', () {
@@ -271,8 +272,44 @@ void main() {
       expect(manager.highlightedPhotoIds, containsAll([10, 20]));
     });
 
+    test('selectCard highlights incident connections', () {
+      final connections = [
+        Connection(id: 101, fromCardId: 1, toCardId: 2),
+        Connection(id: 102, fromCardId: 1, toPhotoId: 10),
+        Connection(id: 103, fromCardId: 2, toCardId: 3),
+      ];
+      manager.selectCard(1, connections);
+
+      expect(manager.highlightedConnectionIds, {101, 102});
+    });
+
+    test('selectPhoto highlights incident connections', () {
+      final connections = [
+        Connection(id: 201, fromPhotoId: 10, toCardId: 1),
+        Connection(id: 202, fromPhotoId: 10, toPhotoId: 20),
+        Connection(id: 203, fromCardId: 1, toCardId: 2),
+      ];
+      manager.selectPhoto(10, connections);
+
+      expect(manager.highlightedConnectionIds, {201, 202});
+    });
+
+    test('switching focus replaces the connection id set', () {
+      final connections = [
+        Connection(id: 1, fromCardId: 1, toCardId: 2),
+        Connection(id: 2, fromCardId: 3, toCardId: 4),
+      ];
+      manager.selectCard(1, connections);
+      final first = manager.highlightedConnectionIds;
+
+      manager.selectCard(3, connections);
+
+      expect(manager.highlightedConnectionIds, {2});
+      expect(identical(first, manager.highlightedConnectionIds), isFalse);
+    });
+
     test('clearSelection resets everything', () {
-      manager.selectCard(1, [Connection(fromCardId: 1, toCardId: 2)]);
+      manager.selectCard(1, [Connection(id: 1, fromCardId: 1, toCardId: 2)]);
       manager.selectPhoto(10, []);
       manager.clearSelection();
       expect(manager.hasSelection, isFalse);
@@ -280,6 +317,7 @@ void main() {
       expect(manager.selectedPhotoId, isNull);
       expect(manager.highlightedCardIds, isEmpty);
       expect(manager.highlightedPhotoIds, isEmpty);
+      expect(manager.highlightedConnectionIds, isEmpty);
     });
   });
 
