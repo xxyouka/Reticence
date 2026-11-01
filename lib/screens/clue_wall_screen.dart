@@ -42,6 +42,7 @@ import '../models/card_model.dart';
 import '../models/connection_model.dart';
 import '../models/photo_card_model.dart';
 import '../models/rendered_connection.dart';
+import '../models/thread_pluck_event.dart';
 import '../providers/card_provider.dart';
 import '../providers/connection_provider.dart';
 import '../providers/photo_provider.dart';
@@ -114,6 +115,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   final ValueNotifier<double> _canvasScaleNotifier = ValueNotifier(1.0);
   final ValueNotifier<int> _canvasMotionNotifier = ValueNotifier(0);
 
+  /// 长按红线时发出的拨动事件（连线 ID + 触点画布坐标）
+  final ValueNotifier<ThreadPluckEvent?> _threadPluckNotifier =
+      ValueNotifier(null);
+
   /// 缩放动画控制器（用于平滑缩放到目标位置）
   late AnimationController _zoomController;
 
@@ -175,6 +180,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     _transformController.removeListener(_onTransformChanged);
     _canvasScaleNotifier.dispose();
     _canvasMotionNotifier.dispose();
+    _threadPluckNotifier.dispose();
     _cardPointerDown.dispose();
     _canvasPinching.dispose();
     _transformController.dispose();
@@ -671,7 +677,8 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
   /// 画布长按处理 —— 拨动红线
   ///
   /// 长按画布空白区域时，检测是否按在红线上。
-  /// 如果命中红线，触发触觉反馈和绳子摆动动画。
+  /// 如果命中红线，触发触觉反馈，并在触点注入局部波动；
+  /// 波动会沿绳子传播，并通过共享卡片传导到相邻连线。
   void _handleCanvasLongPress(Offset globalPosition) {
     if (_controller.connectionHandler.isConnecting) return;
 
@@ -690,6 +697,10 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
     if (hitId != null) {
       HapticFeedback.mediumImpact();
       _canvasMotionNotifier.value++;
+      _threadPluckNotifier.value = ThreadPluckEvent(
+        connectionId: hitId,
+        position: canvasPos,
+      );
     }
   }
 
@@ -1092,6 +1103,7 @@ class _ClueWallScreenState extends ConsumerState<ClueWallScreen>
                               canvasScaleNotifier: _canvasScaleNotifier,
                               canvasMotionNotifier: _canvasMotionNotifier,
                               connectionLabels: connectionLabels,
+                              pluckNotifier: _threadPluckNotifier,
                               highlightedConnectionIds: isSearching
                                   ? searchMatches.connectionIds
                                   : const {},

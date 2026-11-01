@@ -17,6 +17,7 @@ import '../../providers/connection_provider.dart';
 import '../../providers/photo_provider.dart';
 import '../../providers/undo_redo_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_typography.dart';
 import '../../theme/clue_type_style.dart';
 import '../../utils/app_haptics.dart';
 import 'app_dialog_components.dart';
@@ -307,6 +308,35 @@ class _ConnectionDetailDialogState
                 controller: _labelController,
                 hint: '关系描述',
                 autofocus: true,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 可发现性提示：长按红线可拨动
+          FadeTransition(
+            opacity: staggeredInterval(0.45, 0.8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: DialogConstants.horizontalPadding),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.touch_app_outlined,
+                    size: 12,
+                    color: AppColors.sepia.withValues(alpha: 0.45),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '长按红线可拨动',
+                    style: TextStyle(
+                      fontFamily: AppTypography.harmonyOS,
+                      fontSize: 10.5,
+                      color: AppColors.sepia.withValues(alpha: 0.5),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -130,12 +130,12 @@
 - **THEN** 连线呈现绷紧状态（直线+微颤），松手后卡片回弹，连线恢复自然下垂弧度
 
 #### Scenario: 连线拨动
-- **WHEN** 用户在画布上快速划过一条连线
-- **THEN** 连线像真实红线一样被拨动，产生波动效果并逐渐衰减
+- **WHEN** 用户长按一条连线
+- **THEN** 从触点位置产生局部横向波动，沿绳子向两侧传播，并在阻尼作用下逐渐衰减
 
 #### Scenario: 波动传导
 - **WHEN** 一条连线被拨动
-- **THEN** 波动通过共享卡片传导到相邻连线
+- **THEN** 波动通过共享卡片或照片延迟传导到相邻连线，幅度衰减，只传导一跳
 
 #### Scenario: 松手回弹
 - **WHEN** 用户松开被拉伸连线的卡片
@@ -272,6 +272,7 @@
 | 画布渲染帧率 | ≥ 55fps（≤30 张卡片时） | CustomPainter + Forge2D 并行基准 |
 | 极限帧率 | ≥ 30fps（100 张卡片） | UI 不卡死，内存 ≤ 200MB |
 | Forge2D 物理步长 | 1/60s（16.67ms） | 与屏幕刷新率同步 |
+| 波动模拟子步长 | 1/120s | 固定步长，保证不同帧率下波形一致；仅在拨动期间运行 Ticker |
 | 首次启动冷启动 | ≤ 2s | 含 Drift DB 初始化 |
 | 包体积 | APK ≤ 25MB，IPA ≤ 30MB | Forge2D + assets + Google Fonts |
 
@@ -290,9 +291,9 @@
 
 ### 连线渲染方案
 
-当前实现采用静态贝塞尔曲线渲染连线（`RedThreadPainter`），通过三次贝塞尔曲线模拟自然下垂效果。连线以红色绘制，带阴影和发光效果，模拟真实红线在软木板上的视觉质感。
+当前实现采用静态贝塞尔曲线渲染静止连线（`RedThreadPainter`），通过三次贝塞尔曲线模拟自然下垂效果。拨动时把曲线采样成折线，沿法线注入一维离散弦波；波在两端固定、阻尼衰减，静止后自动停止 Ticker。为实现邻居传导，拨动事件会通过共享端点向相邻连线延迟注入衰减波。整个方案不依赖物理引擎。
 
-连线标签沿中段显示，支持半透明白底圆角矩形背景，缩放时等比缩放。
+连线标签沿中段显示，支持半透明白底圆角矩形背景，缩放时等比缩放；拨动时标签跟随变形后的曲线中点。
 
 ---
 
@@ -300,9 +301,9 @@
 
 | 层级 | 工具 | 覆盖范围 | 当前状态 |
 |------|------|---------|---------|
-| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索、关系筛选 | 135 个测试全部通过 |
-| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存、图例筛选 | 已覆盖 |
+| 单元测试 | flutter_test | Repository CRUD、数据模型、Handler 逻辑、UndoRedo、类型搜索、关系筛选、弦波模拟 | 143 个测试全部通过 |
+| Widget 测试 | flutter_test | 画布手势（拖拽/缩放/平移）、应用启动、类型选择器、关系类型保存、图例筛选、拨动集成 | 已覆盖 |
 | 黄金测试 | golden_toolkit | 手账主题视觉回归 | 已覆盖 onboarding 页面 |
 | 集成测试 | integration_test | 完整流程 | 待补充 |
 
-> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存、关系图例计数与筛选切换。
+> 当前测试覆盖：Repository（Card/Photo/Connection CRUD 全覆盖，含 cardType 往返）、Provider（CardListNotifier/PhotoListNotifier/ConnectionListNotifier）、Handler（DragHandler/ConnectionHandler/PhotoDragHandler/SelectionManager/UndoRedoNotifier）、Model（ClueCard/PhotoCard/Connection/类型枚举）、搜索（名称/标签/类型/关系类型）、类型选择器与关系类型保存、关系图例计数与筛选切换、红线弦波传播/衰减/Ticker 自动停止。

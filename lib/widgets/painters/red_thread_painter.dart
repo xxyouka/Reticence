@@ -45,6 +45,11 @@ class RedThreadPainter extends CustomPainter {
   /// 不在集合中的连线会以极低透明度绘制，不显示标签，也不参与命中。
   final Set<ConnectionType> activeFilter;
 
+  /// 连线波动位移（connectionId → 每个采样点沿法线的位移，单位像素）
+  ///
+  /// 只有正在拨动的连线会出现在 map 中；长度 = 采样段数 + 1。
+  final Map<int, List<double>> waveDisplacements;
+
   /// 摆动时间参数（弧度），用于驱动红线的轻微水平摆动动画
   final double swayTime;
 
@@ -67,6 +72,7 @@ class RedThreadPainter extends CustomPainter {
     required this.connectionLabels,
     this.highlightedIds = const {},
     this.activeFilter = const {},
+    this.waveDisplacements = const {},
     this.swayTime = 0,
     this.swayStrength = 1,
     this.labelCache,
@@ -104,7 +110,7 @@ class RedThreadPainter extends CustomPainter {
       if (conn.points.length < 4) continue;
       // AABB 预过滤：若命中区域与连接包围盒不相交，跳过采样
       if (!conn.bounds.overlaps(hitRect)) continue;
-      final samples = _sampleBezier(conn.points, 24);
+      final samples = sampleBezier(conn.points, 24);
       for (final sample in samples) {
         if ((point - sample).distance < threshold) {
           return conn.connectionId;
@@ -117,12 +123,12 @@ class RedThreadPainter extends CustomPainter {
   /// 对三次贝塞尔曲线进行均匀参数采样
   ///
   /// 将 t ∈ [0, 1] 均匀分为 [count] 段，计算每个参数值对应的曲线点。
-  /// 用于命中测试和标签中点定位。
+  /// 用于命中测试、标签定位和拨动波形的变形采样。
   ///
   /// 注意：这是参数空间的均匀采样，不是弧长均匀采样。
   /// 在控制点距离差异较大时，采样点在曲线上的分布可能不均匀，
-  /// 但对于命中测试和标签定位的精度需求已经足够。
-  static List<Offset> _sampleBezier(List<Offset> points, int count) {
+  /// 但对于命中测试和波形渲染的精度需求已经足够。
+  static List<Offset> sampleBezier(List<Offset> points, int count) {
     if (points.length < 4) return points;
 
     final from = points[0];
@@ -169,21 +175,59 @@ class RedThreadPainter extends CustomPainter {
       canvas.save();
       final isHighlighted = highlightedIds.contains(conn.connectionId);
       final swayedConn = _applySway(conn);
+      final wave = waveDisplacements[conn.connectionId];
+      final waveSamples = wave != null && wave.length > 1
+          ? _buildWaveSamples(swayedConn.points, wave)
+          : null;
+      final path = waveSamples != null
+          ? _buildSampledPath(waveSamples)
+          : _buildPath(swayedConn.points);
       final isFilteredOut = activeFilter.isNotEmpty &&
           !activeFilter.contains(conn.connectionType);
       if (isFilteredOut && !isHighlighted) {
-        _drawDimmedThread(canvas, swayedConn, opacity);
+        _drawDimmedThread(canvas, swayedConn, path, opacity);
         canvas.restore();
         continue;
       }
-      if (isHighlighted) _drawGlow(canvas, swayedConn, opacity);
-      _drawShadow(canvas, swayedConn, opacity);
-      _drawThread(canvas, swayedConn,
+      if (isHighlighted) _drawGlow(canvas, path, opacity);
+      _drawShadow(canvas, path, opacity);
+      _drawThread(canvas, swayedConn, path,
           isHighlighted: isHighlighted, opacity: opacity);
       _drawKnots(canvas, swayedConn, opacity);
-      _drawLabel(canvas, swayedConn, originalConn: conn, opacity: opacity);
+      _drawLabel(
+        canvas,
+        swayedConn,
+        originalConn: conn,
+        opacity: opacity,
+        overrideMid: waveSamples?[waveSamples.length ~/ 2],
+      );
       canvas.restore();
     }
+  }
+
+  /// 把基础曲线采样后沿法线施加波动位移
+  ///
+  /// 返回点数与 [wave] 长度一致的变形折线；端点位移始终为 0。
+  List<Offset> _buildWaveSamples(List<Offset> points, List<double> wave) {
+    final samples = sampleBezier(points, wave.length - 1);
+    if (samples.length != wave.length) return samples;
+
+    final result = List<Offset>.filled(samples.length, Offset.zero);
+    for (var i = 0; i < samples.length; i++) {
+      final prev = samples[i == 0 ? 0 : i - 1];
+      final next = samples[i == samples.length - 1 ? i : i + 1];
+      final tangent = next - prev;
+      final length = tangent.distance;
+      final normal = length == 0
+          ? const Offset(0, -1)
+          : Offset(-tangent.dy / length, tangent.dx / length);
+      result[i] = samples[i] + normal * wave[i];
+    }
+    return result;
+  }
+
+  Path _buildSampledPath(List<Offset> points) {
+    return Path()..addPolygon(points, false);
   }
 
   /// 绘制被筛选淡化的连线
@@ -193,9 +237,9 @@ class RedThreadPainter extends CustomPainter {
   void _drawDimmedThread(
     Canvas canvas,
     RenderedConnection conn,
+    Path path,
     double opacity,
   ) {
-    final path = _buildPath(conn.points);
     final width = (1.1 / scale).clamp(0.7, 2.0);
     final palette = conn.connectionType.palette;
 
@@ -245,8 +289,7 @@ class RedThreadPainter extends CustomPainter {
   }
 
   /// 绘制高亮光晕 —— 搜索匹配时在红线上叠加橙色光晕
-  void _drawGlow(Canvas canvas, RenderedConnection conn, double opacity) {
-    final path = _buildPath(conn.points);
+  void _drawGlow(Canvas canvas, Path path, double opacity) {
     final width = (6.0 / scale).clamp(3.0, 10.0);
 
     canvas.drawPath(
@@ -291,8 +334,7 @@ class RedThreadPainter extends CustomPainter {
   ///
   /// 将路径向右下偏移 (1.5, 3.0) 像素，绘制一条比主线更粗的半透明黑色描边，
   /// 模拟红线在软木板上的投影效果。使用 StrokeCap.round 使阴影端点圆滑。
-  void _drawShadow(Canvas canvas, RenderedConnection conn, double opacity) {
-    final path = _buildPath(conn.points);
+  void _drawShadow(Canvas canvas, Path path, double opacity) {
     final width = (2.0 / scale).clamp(1.0, 3.5);
 
     canvas.save();
@@ -317,9 +359,8 @@ class RedThreadPainter extends CustomPainter {
   ///
   /// 设计考量：真实棉线并非均匀着色，受光面会偏亮。通过偏移绘制细高光线，
   /// 在不使用 ImageShader 纹理的情况下也能呈现基本的纤维质感。
-  void _drawThread(Canvas canvas, RenderedConnection conn,
+  void _drawThread(Canvas canvas, RenderedConnection conn, Path path,
       {bool isHighlighted = false, double opacity = 1.0}) {
-    final path = _buildPath(conn.points);
     final width = (2.0 / scale).clamp(1.0, 3.5);
     final palette = conn.connectionType.palette;
 
@@ -395,13 +436,19 @@ class RedThreadPainter extends CustomPainter {
   ///
   /// 视觉设计：标签背景使用 [AppColors.agedPaper]（仿旧纸张色），
   /// 描边使用 [AppColors.sepia]（棕褐色），与侦探主题的复古风格统一。
-  void _drawLabel(Canvas canvas, RenderedConnection conn, {RenderedConnection? originalConn, double opacity = 1.0}) {
+  void _drawLabel(Canvas canvas, RenderedConnection conn,
+      {RenderedConnection? originalConn,
+      double opacity = 1.0,
+      Offset? overrideMid}) {
     final label = connectionLabels[conn.connectionId];
     if (label == null || label.isEmpty) return;
 
-    // 计算标签中点：优先使用缓存的 baseMidpoint + 摆动偏移
+    // 计算标签中点：拨动时跟随变形后的曲线中点，否则使用缓存中点 + 摆动偏移
     Offset mid;
-    if (baseMidpoints != null && baseMidpoints!.containsKey(conn.connectionId)) {
+    if (overrideMid != null) {
+      mid = overrideMid;
+    } else if (baseMidpoints != null &&
+        baseMidpoints!.containsKey(conn.connectionId)) {
       final baseMid = baseMidpoints![conn.connectionId]!;
       if (swayTime != 0 && swayStrength > 0) {
         final phase = _swayPhase(conn.connectionId);
@@ -493,6 +540,7 @@ class RedThreadPainter extends CustomPainter {
         connectionLabels != oldDelegate.connectionLabels ||
         highlightedIds != oldDelegate.highlightedIds ||
         activeFilter != oldDelegate.activeFilter ||
+        waveDisplacements != oldDelegate.waveDisplacements ||
         swayTime != oldDelegate.swayTime ||
         swayStrength != oldDelegate.swayStrength ||
         fadeOpacities != oldDelegate.fadeOpacities ||
