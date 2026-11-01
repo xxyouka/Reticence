@@ -1,0 +1,71 @@
+name: reticence
+description: 关系线索墙 — 用红线和图钉编织你的人际网络。A relationship clue wall app with red thread physics simulation.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.28
+  json_annotation: ^4.9.0
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  collection: ^1.19.1
+  equatable: ^2.0.7
+  image_picker: ^1.1.2
+  vector_math: ^2.2.0
+  share_plus: ^10.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.22.1
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.3
+  mockito: ^5.4.5
+  golden_toolkit: ^0.15.0
+  integration_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/textures/
+    - assets/pins/
+    - assets/images/
+  fonts:
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/Caveat-Bold.ttf
+          weight: 700
+    - family: SourceSerif4
+      fonts:
+        - asset: assets/fonts/SourceSerif4-Regular.ttf
+          weight: 400
+    - family: LXGWWenKai
+      fonts:
+        - asset: assets/fonts/LXGWWenKai-Regular.ttf
+          weight: 400
+    - family: HarmonyOS Sans SC
+      fonts:
+        - asset: assets/fonts/HarmonyOS_Sans_SC_Regular.ttf
+          weight: 400
+    - family: Noto Serif CJK SC
+      fonts:
+        - asset: assets/fonts/NotoSerifSC-SemiBold.otf
+          weight: 600

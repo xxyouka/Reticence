@@ -1,0 +1,18 @@
+{
+  "pixels_per_meter": 100.0,
+  "natural_length": 1.5,
+  "spring_frequency_hz": 8.0,
+  "spring_damping_ratio": 0.5,
+  "break_force_multiplier": 3.0,
+  "gravity": 2.0,
+  "pluck_impulse": 5.0,
+  "vibration_decay": 0.92,
+  "card_linear_damping": 5.0,
+  "card_angular_damping": 8.0,
+  "card_density": 1.0,
+  "card_friction": 0.3,
+  "card_restitution": 0.1,
+  "sag_max_pixels": 30.0,
+  "vibration_propagation_factor": 0.4,
+  "notes": "Initial parameters - needs tuning on device. Spring frequency and damping control the elastic feel. Break multiplier of 3x means connection breaks at 3x natural length. Gravity is mild to create subtle sag without pulling cards down."
+}
